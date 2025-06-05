@@ -23,4 +23,4 @@ predicates = "3"
 tempfile = "3"
 
 [package.metadata]
-authors = ["TODO"]
+authors = ["Nikola Balic @nibzard"]
