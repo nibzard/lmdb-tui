@@ -13,7 +13,7 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 
 ### Phase 0 – Bootstrap
 001. [ ] **hi** Initialize Cargo binary crate `lmdb-tui`
-002. [ ] **hi** CI workflow with clippy, fmt, test and build
+002. [x] **hi** CI workflow with clippy, fmt, test and build
 003. [ ] **mid** Add dependencies: `crossterm`, `ratatui`, `heed`, `clap`, `tokio`
 004. [ ] **mid** Basic `--help` and `--version` output
 
