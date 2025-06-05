@@ -15,3 +15,7 @@ Show the version:
 ```bash
 lmdb-tui --version
 ```
+
+## Documentation
+
+Read the full documentation at <https://lmdb.nibzard.com>.
