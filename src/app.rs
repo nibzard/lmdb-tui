@@ -3,7 +3,9 @@ use std::path::Path;
 use std::time::Duration;
 
 use anyhow::Result;
+use crossterm::cursor::Show;
 use crossterm::event::{self, Event, KeyCode};
+use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Constraint, Direction, Layout};
@@ -14,8 +16,25 @@ use ratatui::Terminal;
 
 use crate::db::env::{list_databases, list_entries, open_env};
 
+pub struct RawModeGuard;
+
+impl RawModeGuard {
+    pub fn new() -> io::Result<Self> {
+        enable_raw_mode()?;
+        Ok(Self)
+    }
+}
+
+impl Drop for RawModeGuard {
+    fn drop(&mut self) {
+        let _ = disable_raw_mode();
+        let mut stdout = io::stdout();
+        let _ = execute!(stdout, Show);
+    }
+}
+
 pub fn run(path: &Path, read_only: bool) -> Result<()> {
-    enable_raw_mode()?;
+    let _raw = RawModeGuard::new()?;
     let mut stdout = io::stdout();
     let backend = CrosstermBackend::new(&mut stdout);
     let mut terminal = Terminal::new(backend)?;
@@ -97,7 +116,5 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
         }
     }
 
-    disable_raw_mode()?;
-    terminal.show_cursor()?;
     Ok(())
 }
