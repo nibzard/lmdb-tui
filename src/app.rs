@@ -4,16 +4,16 @@ use std::time::Duration;
 
 use anyhow::Result;
 use crossterm::cursor::Show;
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::event::{self, Event};
 use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::style::{Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, List, ListItem};
 use ratatui::Terminal;
 
+use crate::config::Config;
 use crate::db::env::{list_databases, list_entries, open_env};
 
 pub struct RawModeGuard;
@@ -39,6 +39,8 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
     let backend = CrosstermBackend::new(&mut stdout);
     let mut terminal = Terminal::new(backend)?;
 
+    let config = Config::load()?;
+
     let env = open_env(path, read_only)?;
     let mut db_names = list_databases(&env)?;
     db_names.sort();
@@ -61,10 +63,7 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                 .enumerate()
                 .map(|(i, name)| {
                     let content = if i == selected {
-                        Span::styled(
-                            name.clone(),
-                            Style::default().add_modifier(Modifier::REVERSED),
-                        )
+                        Span::styled(name.clone(), config.theme.selected_style())
                     } else {
                         Span::raw(name.clone())
                     };
@@ -91,15 +90,15 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
         if event::poll(Duration::from_millis(200))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Char('q') => break,
-                    KeyCode::Down => {
+                    code if code == config.keybindings.quit => break,
+                    code if code == config.keybindings.down => {
                         if !db_names.is_empty() {
                             selected = (selected + 1) % db_names.len();
                             let name = &db_names[selected];
                             entries = list_entries(&env, name, 100)?;
                         }
                     }
-                    KeyCode::Up => {
+                    code if code == config.keybindings.up => {
                         if !db_names.is_empty() {
                             selected = if selected == 0 {
                                 db_names.len() - 1
