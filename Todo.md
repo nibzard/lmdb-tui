@@ -25,11 +25,11 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 009. [x] **mid** Unit tests for env open/list operations
 
 ### Phase 2 – CRUD & Transactions
-010. [ ] **hi** FR-03: CRUD operations inside read-write txn
-011. [ ] **mid** FR-06: transaction management commands
-012. [ ] **mid** FR-11: undo/redo stack
-013. [ ] **mid** DB service layer (`db::*` modules)
-014. [ ] **mid** Integration tests covering CRUD flows
+010. [x] **hi** FR-03: CRUD operations inside read-write txn
+011. [x] **mid** FR-06: transaction management commands
+012. [x] **mid** FR-11: undo/redo stack
+013. [x] **mid** DB service layer (`db::*` modules)
+014. [x] **mid** Integration tests covering CRUD flows
 
 ### Phase 3 – Query Engine
 015. [ ] **mid** FR-05: rich query modes (prefix, range, regex, JSONPath)
@@ -64,7 +64,7 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 034. [~] **hi** `app` main loop and state reducer
 035. [~] **hi** `ui` layouts and widgets using ratatui
 036. [x] **hi** `db::env` open/close env and query stats
-037. [ ] **hi** `db::txn` safe wrapper over heed txns
+037. [x] **hi** `db::txn` safe wrapper over heed txns
 038. [ ] **mid** `db::query` searching and decoding
 039. [ ] **mid** `commands` CRUD, export/import, undo stack
 040. [ ] **mid** `jobs` async workers and channels
