@@ -47,4 +47,6 @@ cargo clippy --all-targets --all-features
 cargo test
 ```
 
-All code is dual-licensed under MIT or Apache-2.0.
+## License
+
+This project is licensed under either the Apache 2.0 license. See [`LICENSE`](LICENSE) for details.
