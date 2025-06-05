@@ -22,4 +22,4 @@ patches and suggestions via pull requests.
 ## License
 
 By contributing to this repository you agree to license your work under the
-terms of both the MIT and Apache-2.0 licenses as specified in `LICENSE`.
+terms of the Apache-2.0 license as specified in `LICENSE`.
