@@ -18,11 +18,11 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 004. [x] **mid** Basic `--help` and `--version` output
 
 ### Phase 1 – Core View
-005. [ ] **hi** FR-01: open existing LMDB environment and list databases
-006. [ ] **hi** FR-02: display keys and values in scrollable list
-007. [ ] **mid** FR-04: support read-only sessions
+005. [x] **hi** FR-01: open existing LMDB environment and list databases
+006. [~] **hi** FR-02: display keys and values in scrollable list
+007. [x] **mid** FR-04: support read-only sessions
 008. [ ] **mid** App state reducer and navigation stack
-009. [ ] **mid** Unit tests for env open/list operations
+009. [x] **mid** Unit tests for env open/list operations
 
 ### Phase 2 – CRUD & Transactions
 010. [ ] **hi** FR-03: CRUD operations inside read-write txn
@@ -61,9 +61,9 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 033. [ ] **lo** plugin API for custom decoders
 
 ## Module Implementation
-034. [ ] **hi** `app` main loop and state reducer
-035. [ ] **hi** `ui` layouts and widgets using ratatui
-036. [ ] **hi** `db::env` open/close env and query stats
+034. [~] **hi** `app` main loop and state reducer
+035. [~] **hi** `ui` layouts and widgets using ratatui
+036. [x] **hi** `db::env` open/close env and query stats
 037. [ ] **hi** `db::txn` safe wrapper over heed txns
 038. [ ] **mid** `db::query` searching and decoding
 039. [ ] **mid** `commands` CRUD, export/import, undo stack
