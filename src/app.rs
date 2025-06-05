@@ -15,6 +15,37 @@ use ratatui::widgets::{Block, Borders, List, ListItem};
 use ratatui::Terminal;
 
 use crate::db::env::{list_databases, list_entries, open_env};
+use crate::ui::help::{self, DEFAULT_ENTRIES};
+
+fn centered_rect(
+    percent_x: u16,
+    percent_y: u16,
+    r: ratatui::layout::Rect,
+) -> ratatui::layout::Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_y) / 2),
+                Constraint::Percentage(percent_y),
+                Constraint::Percentage((100 - percent_y) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(r);
+    let vertical = popup_layout[1];
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_x) / 2),
+                Constraint::Percentage(percent_x),
+                Constraint::Percentage((100 - percent_x) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(vertical)[1]
+}
 
 pub struct RawModeGuard;
 
@@ -48,6 +79,8 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
     } else {
         Vec::new()
     };
+    let mut show_help = false;
+    let mut help_query = String::new();
 
     loop {
         terminal.draw(|f| {
@@ -86,11 +119,35 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
             let kv_list =
                 List::new(kv_items).block(Block::default().borders(Borders::ALL).title("Entries"));
             f.render_widget(kv_list, chunks[1]);
+
+            if show_help {
+                let area = centered_rect(60, 60, f.size());
+                help::render(f, area, &help_query, DEFAULT_ENTRIES);
+            }
         })?;
 
         if event::poll(Duration::from_millis(200))? {
             if let Event::Key(key) = event::read()? {
+                if show_help {
+                    match key.code {
+                        KeyCode::Esc | KeyCode::Char('q') => {
+                            show_help = false;
+                            help_query.clear();
+                        }
+                        KeyCode::Backspace => {
+                            help_query.pop();
+                        }
+                        KeyCode::Char(c) => {
+                            help_query.push(c);
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
                 match key.code {
+                    KeyCode::Char('?') => {
+                        show_help = true;
+                    }
                     KeyCode::Char('q') => break,
                     KeyCode::Down => {
                         if !db_names.is_empty() {

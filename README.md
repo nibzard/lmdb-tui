@@ -14,6 +14,7 @@ The project is currently in early development. The [Todo.md](Todo.md) file track
 - **Statistics panes** showing environment and DB stats (FR-07).
 - **Export/Import** databases to JSON or CSV (FR-09).
 - **Configurable key bindings** and themes (FR-10).
+- **Embedded help screen** with searchable command palette (FR-12).
 
 See `SPECS.md` for detailed requirements and future ideas.
 
