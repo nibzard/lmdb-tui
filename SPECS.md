@@ -12,7 +12,7 @@ Scope
 	•	Single-binary CLI application (lmdb-tui)
 	•	Works on Linux, macOS, Windows (POSIX-style terminals or Windows Terminal)
 	•	Targets Rust stable ≥ 1.78, LMDB ≥ 0.9.31
-	•	Licensed MIT / Apache-2.0 (dual)
+	•	Licensed Apache-2.0
 
 Audience Backend engineers, SREs, embedded developers, and hobbyists using LMDB.
 
