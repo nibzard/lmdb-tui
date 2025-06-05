@@ -32,9 +32,9 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 014. [x] **mid** Integration tests covering CRUD flows
 
 ### Phase 3 – Query Engine
-015. [ ] **mid** FR-05: rich query modes (prefix, range, regex, JSONPath)
-016. [ ] **mid** Implement `db::query` module with decoders
-017. [ ] **mid** Snapshot tests for query UI
+015. [x] **mid** FR-05: rich query modes (prefix, range, regex, JSONPath)
+016. [x] **mid** Implement `db::query` module with decoders
+017. [x] **mid** Snapshot tests for query UI
 
 ### Phase 4 – Visuals and Stats
 018. [ ] **mid** FR-07: environment and DB statistics panes
