@@ -12,6 +12,9 @@ use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, List, ListItem};
+
+use crate::db::stats::{DbStats, EnvStats};
+use crate::jobs::{JobQueue, JobResult};
 use ratatui::Terminal;
 
 use crate::db::env::{list_databases, list_entries, open_env};
@@ -48,13 +51,44 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
     } else {
         Vec::new()
     };
+    let mut queue = JobQueue::new(env.clone());
+    queue.request_env_stats()?;
+    if let Some(name) = db_names.first() {
+        queue.request_db_stats(name.clone())?;
+    }
+    let mut env_stats: Option<EnvStats> = None;
+    let mut db_stats: Option<DbStats> = None;
 
     loop {
+        while let Ok(msg) = queue.receiver.try_recv() {
+            match msg {
+                JobResult::Env(s) => env_stats = Some(s),
+                JobResult::Db(_, s) => db_stats = Some(s),
+            }
+        }
+
         terminal.draw(|f| {
+            let main = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Length(3), Constraint::Min(0)].as_ref())
+                .split(f.size());
+
+            let stats_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+                .split(main[0]);
+
+            if let Some(ref s) = env_stats {
+                crate::ui::stats::render_env(f, stats_chunks[0], s);
+            }
+            if let Some(ref s) = db_stats {
+                crate::ui::stats::render_db(f, stats_chunks[1], s);
+            }
+
             let chunks = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
-                .split(f.size());
+                .split(main[1]);
 
             let items: Vec<ListItem> = db_names
                 .iter()
@@ -97,6 +131,7 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                             selected = (selected + 1) % db_names.len();
                             let name = &db_names[selected];
                             entries = list_entries(&env, name, 100)?;
+                            queue.request_db_stats(name.clone())?;
                         }
                     }
                     KeyCode::Up => {
@@ -108,6 +143,7 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                             };
                             let name = &db_names[selected];
                             entries = list_entries(&env, name, 100)?;
+                            queue.request_db_stats(name.clone())?;
                         }
                     }
                     _ => {}
