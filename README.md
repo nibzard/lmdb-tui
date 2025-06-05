@@ -37,6 +37,10 @@ To view the current version:
 lmdb-tui --version
 ```
 
+## Documentation
+
+Read the full documentation at <https://lmdb.nibzard.com>.
+
 ## Contributing
 
 Contributions are welcome! Please check `Todo.md` for open tasks. Before submitting a pull request, run:

@@ -1,0 +1,8 @@
+site_name: lmdb-tui
+site_url: https://lmdb.nibzard.com
+repo_url: https://github.com/nibzard/lmdb-tui
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
