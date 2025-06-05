@@ -19,9 +19,9 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 
 ### Phase 1 – Core View
 005. [x] **hi** FR-01: open existing LMDB environment and list databases
-006. [~] **hi** FR-02: display keys and values in scrollable list
+006. [x] **hi** FR-02: display keys and values in scrollable list
 007. [x] **mid** FR-04: support read-only sessions
-008. [ ] **mid** App state reducer and navigation stack
+008. [~] **mid** App state reducer and navigation stack
 009. [x] **mid** Unit tests for env open/list operations
 
 ### Phase 2 – CRUD & Transactions
