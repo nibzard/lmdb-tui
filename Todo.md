@@ -14,8 +14,8 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 ### Phase 0 – Bootstrap
 001. [x] **hi** Initialize Cargo binary crate `lmdb-tui`
 002. [x] **hi** CI workflow with clippy, fmt, test and build
-003. [ ] **mid** Add dependencies: `crossterm`, `ratatui`, `heed`, `clap`, `tokio`
-004. [ ] **mid** Basic `--help` and `--version` output
+003. [x] **mid** Add dependencies: `crossterm`, `ratatui`, `heed`, `clap`, `tokio`
+004. [x] **mid** Basic `--help` and `--version` output
 
 ### Phase 1 – Core View
 005. [ ] **hi** FR-01: open existing LMDB environment and list databases
