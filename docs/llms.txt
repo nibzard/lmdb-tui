@@ -1,0 +1,16 @@
+# lmdb-tui
+
+> Quick links for the lmdb-tui project.
+
+## Documentation
+- [README](README.md)
+- [getting-started](getting-started.md)
+- [index](index.md)
+
+## Repository
+- [README](../README.md)
+- [SPECS](../SPECS.md)
+- [CONTRIBUTING](../CONTRIBUTING.md)
+
+## Optional
+- [Todo](../Todo.md)

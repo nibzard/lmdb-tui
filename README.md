@@ -40,6 +40,8 @@ lmdb-tui --version
 ## Documentation
 
 Read the full documentation at <https://lmdb.nibzard.com>.
+For tools that consume our documentation automatically, see
+[llms.txt](https://lmdb.nibzard.com/llms.txt) for a brief index.
 
 ## Contributing
 
