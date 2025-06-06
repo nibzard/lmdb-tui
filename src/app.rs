@@ -99,10 +99,11 @@ pub struct App {
     pub db_stats: Option<DbStats>,
     pub show_help: bool,
     pub help_query: String,
+    pub config: Config,
 }
 
 impl App {
-    pub fn new(env: Env, mut db_names: Vec<String>) -> Result<Self> {
+    pub fn new(env: Env, mut db_names: Vec<String>, config: Config) -> Result<Self> {
         db_names.sort();
         let entries = if let Some(name) = db_names.first() {
             list_entries(&env, name, 100)?
@@ -129,6 +130,7 @@ impl App {
             db_stats: None,
             show_help: false,
             help_query: String::new(),
+            config,
         })
     }
 
@@ -195,10 +197,10 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
     let backend = CrosstermBackend::new(&mut stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let _config = Config::load()?;
+    let config = Config::load()?;
     let env = open_env(path, read_only)?;
     let names = list_databases(&env)?;
-    let mut app = App::new(env, names)?;
+    let mut app = App::new(env, names, config)?;
 
     while app.running {
         app.process_background_jobs();
@@ -214,32 +216,46 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
             if let Event::Key(key) = event::read()? {
                 if app.show_help {
                     match key.code {
-                        KeyCode::Esc | KeyCode::Char('q') => {
+                        KeyCode::Esc => {
                             app.reduce(Action::ToggleHelp)?;
                         }
                         KeyCode::Backspace => {
                             app.help_query.pop();
                         }
                         KeyCode::Char(c) => {
-                            app.help_query.push(c);
+                            if key.code == app.config.keybindings.quit {
+                                app.reduce(Action::ToggleHelp)?;
+                            } else {
+                                app.help_query.push(c);
+                            }
                         }
                         _ => {}
                     }
                     continue;
                 }
                 let action = match app.current_view() {
-                    View::Main => match key.code {
-                        KeyCode::Char('q') => Some(Action::Quit),
-                        KeyCode::Char('?') => Some(Action::ToggleHelp),
-                        KeyCode::Char('/') => Some(Action::EnterQuery),
-                        KeyCode::Down => Some(Action::NextDb),
-                        KeyCode::Up => Some(Action::PrevDb),
-                        _ => None,
-                    },
-                    View::Query => match key.code {
-                        KeyCode::Esc | KeyCode::Char('q') => Some(Action::ExitView),
-                        _ => None,
-                    },
+                    View::Main => {
+                        if key.code == app.config.keybindings.quit {
+                            Some(Action::Quit)
+                        } else if key.code == app.config.keybindings.help {
+                            Some(Action::ToggleHelp)
+                        } else if key.code == app.config.keybindings.query {
+                            Some(Action::EnterQuery)
+                        } else if key.code == app.config.keybindings.down {
+                            Some(Action::NextDb)
+                        } else if key.code == app.config.keybindings.up {
+                            Some(Action::PrevDb)
+                        } else {
+                            None
+                        }
+                    }
+                    View::Query => {
+                        if key.code == KeyCode::Esc || key.code == app.config.keybindings.quit {
+                            Some(Action::ExitView)
+                        } else {
+                            None
+                        }
+                    }
                 };
                 if let Some(act) = action {
                     app.reduce(act)?;

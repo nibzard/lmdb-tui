@@ -31,6 +31,8 @@ pub struct KeyBindings {
     pub quit: KeyCode,
     pub up: KeyCode,
     pub down: KeyCode,
+    pub help: KeyCode,
+    pub query: KeyCode,
 }
 
 impl Default for KeyBindings {
@@ -39,6 +41,8 @@ impl Default for KeyBindings {
             quit: KeyCode::Char('q'),
             up: KeyCode::Up,
             down: KeyCode::Down,
+            help: KeyCode::Char('?'),
+            query: KeyCode::Char('/'),
         }
     }
 }
@@ -80,6 +84,10 @@ struct RawKeyBindings {
     up: String,
     #[serde(default = "default_down")]
     down: String,
+    #[serde(default = "default_help")]
+    help: String,
+    #[serde(default = "default_query")]
+    query: String,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -99,6 +107,12 @@ fn default_up() -> String {
 fn default_down() -> String {
     "Down".into()
 }
+fn default_help() -> String {
+    "?".into()
+}
+fn default_query() -> String {
+    "/".into()
+}
 fn default_fg() -> String {
     "Black".into()
 }
@@ -113,6 +127,8 @@ impl From<RawConfig> for Config {
                 quit: parse_key(&raw.keybindings.quit),
                 up: parse_key(&raw.keybindings.up),
                 down: parse_key(&raw.keybindings.down),
+                help: parse_key(&raw.keybindings.help),
+                query: parse_key(&raw.keybindings.query),
             },
             theme: Theme {
                 selected_fg: parse_color(&raw.theme.selected_fg),
@@ -126,8 +142,23 @@ fn parse_key(name: &str) -> KeyCode {
     match name.to_lowercase().as_str() {
         "up" => KeyCode::Up,
         "down" => KeyCode::Down,
+        "left" => KeyCode::Left,
+        "right" => KeyCode::Right,
+        "enter" => KeyCode::Enter,
+        "space" => KeyCode::Char(' '),
+        "tab" => KeyCode::Tab,
+        "backspace" => KeyCode::Backspace,
+        "delete" => KeyCode::Delete,
+        "esc" | "escape" => KeyCode::Esc,
+        "home" => KeyCode::Home,
+        "end" => KeyCode::End,
+        "pageup" => KeyCode::PageUp,
+        "pagedown" => KeyCode::PageDown,
         c if c.len() == 1 => KeyCode::Char(c.chars().next().unwrap()),
-        _ => KeyCode::Null,
+        _ => {
+            log::warn!("Unknown key '{}', falling back to Null", name);
+            KeyCode::Null
+        }
     }
 }
 
@@ -141,7 +172,12 @@ fn parse_color(name: &str) -> Color {
         "magenta" => Color::Magenta,
         "cyan" => Color::Cyan,
         "white" => Color::White,
-        _ => Color::Reset,
+        "gray" | "grey" => Color::Gray,
+        "reset" => Color::Reset,
+        _ => {
+            log::warn!("Unknown color '{}', falling back to Reset", name);
+            Color::Reset
+        }
     }
 }
 
@@ -188,5 +224,29 @@ selected_bg = "Blue"
         assert_eq!(cfg.keybindings.quit, KeyCode::Char('x'));
         assert_eq!(cfg.theme.selected_bg, Color::Blue);
         Ok(())
+    }
+
+    #[test]
+    fn parse_key_supports_special_keys() {
+        assert_eq!(parse_key("enter"), KeyCode::Enter);
+        assert_eq!(parse_key("Enter"), KeyCode::Enter);
+        assert_eq!(parse_key("ENTER"), KeyCode::Enter);
+        assert_eq!(parse_key("space"), KeyCode::Char(' '));
+        assert_eq!(parse_key("esc"), KeyCode::Esc);
+        assert_eq!(parse_key("escape"), KeyCode::Esc);
+        assert_eq!(parse_key("pageup"), KeyCode::PageUp);
+        assert_eq!(parse_key("pagedown"), KeyCode::PageDown);
+        assert_eq!(parse_key("invalid"), KeyCode::Null);
+    }
+
+    #[test]
+    fn parse_color_supports_common_colors() {
+        assert_eq!(parse_color("red"), Color::Red);
+        assert_eq!(parse_color("RED"), Color::Red);
+        assert_eq!(parse_color("Red"), Color::Red);
+        assert_eq!(parse_color("gray"), Color::Gray);
+        assert_eq!(parse_color("grey"), Color::Gray);
+        assert_eq!(parse_color("reset"), Color::Reset);
+        assert_eq!(parse_color("invalid"), Color::Reset);
     }
 }

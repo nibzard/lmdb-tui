@@ -1,6 +1,7 @@
 use heed::types::{Bytes, Str};
 use lmdb_tui::{
     app::{Action, App},
+    config::Config,
     db::env::{list_databases, open_env},
 };
 use tempfile::tempdir;
@@ -17,7 +18,8 @@ fn reducer_switches_databases() -> anyhow::Result<()> {
     wtxn.commit()?;
 
     let names = list_databases(&env)?;
-    let mut app = App::new(env, names)?;
+    let config = Config::default();
+    let mut app = App::new(env, names, config)?;
     assert_eq!(app.selected, 0);
     assert_eq!(app.entries.len(), 1);
     assert_eq!(app.entries[0].0, "k1");

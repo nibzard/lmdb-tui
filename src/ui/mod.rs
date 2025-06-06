@@ -11,7 +11,7 @@ use crate::app::{App, View};
 pub fn render(f: &mut Frame, app: &App) {
     let area = f.size();
     match app.current_view() {
-        View::Main => db_view::render(f, area, &app.db_names, app.selected, &app.entries),
+        View::Main => db_view::render(f, area, &app.db_names, app.selected, &app.entries, &app.config),
         View::Query => query::render(f, area, &app.query, &app.entries),
     }
 }

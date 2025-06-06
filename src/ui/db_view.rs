@@ -1,9 +1,10 @@
 use ratatui::{
     prelude::{Constraint, Direction, Frame, Layout, Rect},
-    style::{Modifier, Style},
     text::Span,
     widgets::{Block, Borders, List, ListItem},
 };
+
+use crate::config::Config;
 
 /// Render the main database view.
 pub fn render(
@@ -12,6 +13,7 @@ pub fn render(
     db_names: &[String],
     selected: usize,
     entries: &[(String, Vec<u8>)],
+    config: &Config,
 ) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -25,7 +27,7 @@ pub fn render(
             let content = if i == selected {
                 Span::styled(
                     name.clone(),
-                    Style::default().add_modifier(Modifier::REVERSED),
+                    config.theme.selected_style(),
                 )
             } else {
                 Span::raw(name.clone())
