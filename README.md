@@ -14,6 +14,7 @@ The project is currently in early development. The [Todo.md](Todo.md) file track
 - **Statistics panes** showing environment and DB stats (FR-07).
 - **Export/Import** databases to JSON or CSV (FR-09).
 - **Configurable key bindings** and themes (FR-10).
+- **Embedded help screen** with searchable command palette (FR-12).
 
 See `SPECS.md` for detailed requirements and future ideas.
 
@@ -36,6 +37,23 @@ To view the current version:
 ```bash
 lmdb-tui --version
 ```
+
+## Packaging
+
+Release binaries can be produced with the helper scripts in `scripts/`.
+To build static artifacts for Linux, macOS and Windows targets, run:
+
+```bash
+scripts/cross_build.sh
+```
+
+Homebrew and Scoop manifests can be generated with:
+
+```bash
+python scripts/generate_manifests.py
+```
+
+The generated files are written to the `dist/` directory.
 
 ## Documentation
 

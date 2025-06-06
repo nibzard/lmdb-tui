@@ -6,17 +6,16 @@ use clap::{command, CommandFactory, Parser};
 use heed::Error as HeedError;
 use log::LevelFilter;
 
+use heed::Error as HeedError;
 use lmdb_tui::app;
 
 /// Simple LMDB TUI explorer
 #[derive(Debug, Parser)]
 #[command(
     author,
-    version,
-    about,
-    long_about = None,
-    after_help = AFTER_HELP,
-    arg_required_else_help = true
+    about = "Simple LMDB TUI explorer",
+    arg_required_else_help = true,
+    after_help = "Examples:\n  lmdb-tui path/to/env\n  lmdb-tui --plain path/to/env\n\nFull docs: https://lmdb.nibzard.com"
 )]
 struct Cli {
     /// Path to the LMDB environment directory
@@ -26,11 +25,11 @@ struct Cli {
     #[arg(long)]
     read_only: bool,
 
-    /// Output plain text instead of the TUI
+    /// Output plain text instead of TUI
     #[arg(long, conflicts_with = "json")]
     plain: bool,
 
-    /// Output JSON instead of the TUI
+    /// Output JSON instead of TUI
     #[arg(long, conflicts_with = "plain")]
     json: bool,
 
@@ -51,12 +50,8 @@ fn main() {
 
     init_logger(&cli);
 
-    let result = if cli.plain {
-        println!("plain output mode not implemented");
-        Ok(())
-    } else if cli.json {
-        println!("{{\"error\":\"json mode not implemented\"}}");
-        Ok(())
+    let result = if cli.plain || cli.json {
+        app::run_plain(&cli.path, cli.read_only, cli.json)
     } else {
         app::run(&cli.path, cli.read_only)
     };
