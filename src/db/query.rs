@@ -6,6 +6,21 @@ use heed::{
 use jsonpath_lib as jsonpath;
 use regex::Regex;
 use serde_json::Value;
+use std::str;
+
+/// Attempt to decode raw bytes into a `serde_json::Value`.
+///
+/// The function first tries JSON and then MessagePack. If both fail, an error
+/// is returned so callers can decide how to handle undecodable values.
+pub fn decode_value(bytes: &[u8]) -> Result<Value> {
+    if let Ok(v) = serde_json::from_slice::<Value>(bytes) {
+        return Ok(v);
+    }
+    if let Ok(v) = rmp_serde::from_slice::<Value>(bytes) {
+        return Ok(v);
+    }
+    Err(anyhow!("unable to decode value"))
+}
 
 pub enum Mode<'a> {
     Prefix(&'a str),
@@ -34,7 +49,7 @@ pub fn scan(
             Mode::Range(start, end) => matched = key >= *start && key < *end,
             Mode::Regex(re) => matched = re.is_match(key),
             Mode::JsonPath(path) => {
-                if let Ok(v) = serde_json::from_slice::<Value>(value) {
+                if let Ok(v) = decode_value(value) {
                     matched = jsonpath::select(&v, path)
                         .map(|r| !r.is_empty())
                         .unwrap_or(false);
