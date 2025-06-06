@@ -1,12 +1,23 @@
+use std::io::Write;
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
 
-use clap::{command, Parser};
+use clap::{command, CommandFactory, Parser};
+use heed::Error as HeedError;
+use log::LevelFilter;
 
 use lmdb_tui::app;
 
 /// Simple LMDB TUI explorer
 #[derive(Debug, Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(
+    author,
+    version,
+    about,
+    long_about = None,
+    after_help = AFTER_HELP,
+    arg_required_else_help = true
+)]
 struct Cli {
     /// Path to the LMDB environment directory
     path: PathBuf,
@@ -14,12 +25,105 @@ struct Cli {
     /// Open environment read-only
     #[arg(long)]
     read_only: bool,
+
+    /// Output plain text instead of the TUI
+    #[arg(long, conflicts_with = "json")]
+    plain: bool,
+
+    /// Output JSON instead of the TUI
+    #[arg(long, conflicts_with = "plain")]
+    json: bool,
+
+    /// Suppress non-error output
+    #[arg(short = 'q', long)]
+    quiet: bool,
+
+    /// Increase logging verbosity
+    #[arg(long, action = clap::ArgAction::Count)]
+    verbose: u8,
 }
 
+const AFTER_HELP: &str = "Examples:\n    lmdb-tui ./env\n    lmdb-tui --read-only ./env\n\nSee the README for details: https://lmdb.nibzard.com";
+
 fn main() {
+    handle_help_pager();
     let cli = Cli::parse();
-    if let Err(e) = app::run(&cli.path, cli.read_only) {
-        eprintln!("error: {e}");
-        std::process::exit(1);
+
+    init_logger(&cli);
+
+    let result = if cli.plain {
+        println!("plain output mode not implemented");
+        Ok(())
+    } else if cli.json {
+        println!("{{\"error\":\"json mode not implemented\"}}");
+        Ok(())
+    } else {
+        app::run(&cli.path, cli.read_only)
+    };
+
+    if let Err(e) = result {
+        log::error!("{e}");
+        std::process::exit(exit_code(&e));
     }
+}
+
+fn handle_help_pager() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() == 1 || args.iter().any(|a| a == "--help" || a == "-h") {
+        let mut cmd = Cli::command();
+        let mut buf = Vec::new();
+        cmd.write_long_help(&mut buf).unwrap();
+        let help = String::from_utf8(buf).unwrap();
+        if let Ok(pager) = std::env::var("PAGER") {
+            if let Ok(mut child) = Command::new(pager).stdin(Stdio::piped()).spawn() {
+                if let Some(mut stdin) = child.stdin.take() {
+                    let _ = stdin.write_all(help.as_bytes());
+                }
+                let _ = child.wait();
+            } else {
+                println!("{help}");
+            }
+        } else {
+            println!("{help}");
+        }
+        std::process::exit(0);
+    }
+}
+
+fn init_logger(cli: &Cli) {
+    let verbosity = cli.verbose + if std::env::var("DEBUG").is_ok() { 1 } else { 0 };
+    let level = if cli.quiet {
+        LevelFilter::Error
+    } else {
+        match verbosity {
+            0 => LevelFilter::Warn,
+            1 => LevelFilter::Info,
+            _ => LevelFilter::Debug,
+        }
+    };
+    env_logger::Builder::from_env(env_logger::Env::default())
+        .filter_level(level)
+        .init();
+}
+
+fn exit_code(e: &anyhow::Error) -> i32 {
+    for cause in e.chain() {
+        if let Some(io) = cause.downcast_ref::<std::io::Error>() {
+            use std::io::ErrorKind::*;
+            return match io.kind() {
+                NotFound => 2,
+                PermissionDenied => 3,
+                _ => 1,
+            };
+        }
+        if let Some(HeedError::Io(io)) = cause.downcast_ref::<HeedError>() {
+            use std::io::ErrorKind::*;
+            return match io.kind() {
+                NotFound => 2,
+                PermissionDenied => 3,
+                _ => 1,
+            };
+        }
+    }
+    1
 }
