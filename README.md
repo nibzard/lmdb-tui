@@ -37,6 +37,23 @@ To view the current version:
 lmdb-tui --version
 ```
 
+## Packaging
+
+Release binaries can be produced with the helper scripts in `scripts/`.
+To build static artifacts for Linux, macOS and Windows targets, run:
+
+```bash
+scripts/cross_build.sh
+```
+
+Homebrew and Scoop manifests can be generated with:
+
+```bash
+python scripts/generate_manifests.py
+```
+
+The generated files are written to the `dist/` directory.
+
 ## Documentation
 
 Read the full documentation at <https://lmdb.nibzard.com>.
