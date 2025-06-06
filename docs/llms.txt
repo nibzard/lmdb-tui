@@ -6,6 +6,7 @@
 - [README](README.md)
 - [getting-started](getting-started.md)
 - [index](index.md)
+- [configuration](configuration.md)
 
 ## Repository
 - [README](../README.md)
