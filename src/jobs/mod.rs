@@ -39,20 +39,28 @@ impl JobQueue {
                     match job {
                         Job::Env => {
                             let e = env_thread.clone();
-                            let stats = task::spawn_blocking(move || stats::env_stats(&e))
-                                .await
-                                .unwrap();
-                            let _ = res_tx.send(JobResult::Env(stats));
+                            match task::spawn_blocking(move || stats::env_stats(&e)).await {
+                                Ok(stats) => {
+                                    let _ = res_tx.send(JobResult::Env(stats));
+                                }
+                                Err(e) => {
+                                    log::error!("Failed to calculate environment stats: {}", e);
+                                }
+                            }
                         }
                         Job::Db(name) => {
                             let e = env_thread.clone();
                             let name_clone = name.clone();
-                            let res =
-                                task::spawn_blocking(move || stats::db_stats(&e, &name_clone))
-                                    .await
-                                    .unwrap();
-                            if let Ok(s) = res {
-                                let _ = res_tx.send(JobResult::Db(name, s));
+                            match task::spawn_blocking(move || stats::db_stats(&e, &name_clone)).await {
+                                Ok(Ok(stats)) => {
+                                    let _ = res_tx.send(JobResult::Db(name, stats));
+                                }
+                                Ok(Err(e)) => {
+                                    log::warn!("Failed to calculate stats for database '{}': {}", name, e);
+                                }
+                                Err(e) => {
+                                    log::error!("Task join error for database '{}': {}", name, e);
+                                }
                             }
                         }
                     }

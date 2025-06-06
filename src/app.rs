@@ -110,7 +110,7 @@ impl App {
             Vec::new()
         };
         
-        let mut job_queue = JobQueue::new(env.clone());
+        let job_queue = JobQueue::new(env.clone());
         job_queue.request_env_stats()?;
         if let Some(name) = db_names.first() {
             job_queue.request_db_stats(name.clone())?;
@@ -133,7 +133,7 @@ impl App {
     }
 
     pub fn current_view(&self) -> View {
-        *self.view.last().unwrap_or(&View::Main)
+        self.view.last().copied().unwrap_or(View::Main)
     }
 
     pub fn process_background_jobs(&mut self) {
@@ -173,6 +173,7 @@ impl App {
                 if self.view.len() > 1 {
                     self.view.pop();
                 } else {
+                    // Don't exit from the main view, just quit the app
                     self.running = false;
                 }
             }

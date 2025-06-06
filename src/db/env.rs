@@ -23,7 +23,7 @@ pub fn list_databases(env: &Env) -> Result<Vec<String>> {
     let rtxn = env.read_txn()?;
     let unnamed: Database<Str, DecodeIgnore> = env
         .open_database(&rtxn, None)?
-        .expect("the unnamed database always exists");
+        .ok_or_else(|| anyhow!("unnamed database not found"))?;
     let mut names = Vec::new();
     for entry in unnamed.iter(&rtxn)? {
         let (name, ()) = entry?;
@@ -31,7 +31,7 @@ pub fn list_databases(env: &Env) -> Result<Vec<String>> {
             names.push(name.to_string());
         }
     }
-    rtxn.commit()?;
+    // Read transactions are automatically aborted when dropped
     Ok(names)
 }
 
@@ -39,7 +39,7 @@ pub fn list_entries(env: &Env, db_name: &str, limit: usize) -> Result<Vec<(Strin
     let rtxn = env.read_txn()?;
     let db: Database<Str, Bytes> = env
         .open_database(&rtxn, Some(db_name))?
-        .ok_or_else(|| anyhow!("database not found"))?;
+        .ok_or_else(|| anyhow!("database '{}' not found", db_name))?;
     let iter = db.iter(&rtxn)?;
     let mut items = Vec::new();
     for (count, result) in iter.enumerate() {
@@ -49,5 +49,6 @@ pub fn list_entries(env: &Env, db_name: &str, limit: usize) -> Result<Vec<(Strin
         let (key, value) = result?;
         items.push((key.to_string(), value.to_vec()));
     }
+    // Read transaction will be automatically dropped/aborted here
     Ok(items)
 }
