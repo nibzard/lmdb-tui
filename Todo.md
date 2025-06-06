@@ -49,7 +49,7 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 
 ### Phase 6 – Polish & Docs
 025. [ ] **mid** FR-10: configurable keybindings and themes
-026. [ ] **lo** FR-12: embedded help screen with searchable palette
+026. [x] **lo** FR-12: embedded help screen with searchable palette
 027. [x] **mid** Packaging scripts: cross-build, Homebrew/Scoop manifests
 028. [ ] **mid** Usage examples and screenshots in README
 029. [ ] **mid** Document config format in `docs/`
