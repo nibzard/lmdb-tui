@@ -54,7 +54,7 @@ Terminal backend	crossterm	Cross-platform, WinPTY/ConPTY friendly
 TUI framework	ratatui (fork of tui-rs)	Maintained; flexible layout API
 Async tasks	tokio (multi-thread)	Only for background jobs & channels
 LMDB bindings	heed (safe zero-copy) or rkv or lmdb-rs	Evaluate benches; prefer heed for safety
-CLI parsing	clap v4 derive	Flags, subcommands (e.g., stats, open)
+CLI parsing	clap v4 derive	Flags, subcommands (e.g., stats, open); help displayed when run without args
 Serialization	serde, serde_json, serde_yaml, csv	Export/import
 Error handling	thiserror, anyhow	Rich context
 Logging	tracing, tracing-subscriber	JSON and colour log output
