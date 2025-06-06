@@ -70,7 +70,7 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 040. [x] **mid** `jobs` async workers and channels
 041. [ ] **mid** `config` load/save YAML/TOML settings
 042. [x] **lo** `util` helpers (hex/utf-8, formatting)
-043. [ ] **mid** `errors` define `AppError` via `thiserror`
+043. [x] **mid** `errors` define `AppError` via `thiserror`
 
 ## Non-Functional Goals
 044. [ ] **mid** Keep RSS under 200 MB via streaming
