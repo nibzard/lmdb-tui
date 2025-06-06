@@ -79,9 +79,9 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 047. [ ] **mid** Audit crates to ensure no network I/O
 
 ### CLI UX Guidelines
-048. [ ] **mid** Update SPECS for help output when run without args; Clap shows examples
-049. [ ] **mid** Map common errors to exit codes and add tests
-050. [ ] **mid** Implement `--plain` and `--json` output modes
-051. [ ] **mid** Honour `$DEBUG` and `$PAGER` environment variables
-052. [ ] **mid** Add `-q` quiet and `--verbose` logging flags
-053. [ ] **mid** Include README link and example commands in `--help`
+048. [x] **mid** Update SPECS for help output when run without args; Clap shows examples
+049. [x] **mid** Map common errors to exit codes and add tests
+050. [x] **mid** Implement `--plain` and `--json` output modes
+051. [x] **mid** Honour `$DEBUG` and `$PAGER` environment variables
+052. [x] **mid** Add `-q` quiet and `--verbose` logging flags
+053. [x] **mid** Include README link and example commands in `--help`
