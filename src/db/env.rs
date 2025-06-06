@@ -31,15 +31,34 @@ pub fn list_databases(env: &Env) -> Result<Vec<String>> {
             names.push(name.to_string());
         }
     }
+    
+    // If no named databases exist, check if the unnamed database has data
+    if names.is_empty() {
+        if let Ok(Some(db)) = env.open_database::<Str, Bytes>(&rtxn, None) {
+            // Check if unnamed database has any entries
+            if db.iter(&rtxn)?.next().is_some() {
+                names.push("(unnamed)".to_string());
+            }
+        }
+    }
+    
     // Read transactions are automatically aborted when dropped
     Ok(names)
 }
 
 pub fn list_entries(env: &Env, db_name: &str, limit: usize) -> Result<Vec<(String, Vec<u8>)>> {
     let rtxn = env.read_txn()?;
-    let db: Database<Str, Bytes> = env
-        .open_database(&rtxn, Some(db_name))?
-        .ok_or_else(|| anyhow!("database '{}' not found", db_name))?;
+    
+    let db: Database<Str, Bytes> = if db_name == "(unnamed)" {
+        // Open the unnamed database
+        env.open_database(&rtxn, None)?
+            .ok_or_else(|| anyhow!("unnamed database not found"))?
+    } else {
+        // Open a named database
+        env.open_database(&rtxn, Some(db_name))?
+            .ok_or_else(|| anyhow!("database '{}' not found", db_name))?
+    };
+    
     let iter = db.iter(&rtxn)?;
     let mut items = Vec::new();
     for (count, result) in iter.enumerate() {
