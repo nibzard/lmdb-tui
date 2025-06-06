@@ -7,15 +7,13 @@ use crossterm::cursor::Show;
 use crossterm::event::{self, Event, KeyCode};
 use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use heed::Env;
 use ratatui::backend::CrosstermBackend;
-use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::style::{Modifier, Style};
-use ratatui::text::Span;
-use ratatui::widgets::{Block, Borders, List, ListItem};
 use ratatui::Terminal;
 
 use crate::db::env::{list_databases, list_entries, open_env};
-use crate::ui::help::{self, DEFAULT_ENTRIES};
+use crate::ui::{self, help::{self, DEFAULT_ENTRIES}};
+use ratatui::layout::{Constraint, Direction, Layout};
 
 fn centered_rect(
     percent_x: u16,
@@ -47,6 +45,7 @@ fn centered_rect(
         .split(vertical)[1]
 }
 
+/// Guard that enables raw mode on creation and disables it on drop.
 pub struct RawModeGuard;
 
 impl RawModeGuard {
@@ -64,6 +63,103 @@ impl Drop for RawModeGuard {
     }
 }
 
+/// Available application views.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum View {
+    Main,
+    Query,
+}
+
+/// Actions that update the [`App`] state.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Action {
+    NextDb,
+    PrevDb,
+    EnterQuery,
+    ExitView,
+    ToggleHelp,
+    Quit,
+}
+
+/// Application state shared between the UI and reducer.
+pub struct App {
+    pub env: Env,
+    pub db_names: Vec<String>,
+    pub selected: usize,
+    pub entries: Vec<(String, Vec<u8>)>,
+    view: Vec<View>,
+    running: bool,
+    pub query: String,
+    pub show_help: bool,
+    pub help_query: String,
+}
+
+impl App {
+    pub fn new(env: Env, mut db_names: Vec<String>) -> Result<Self> {
+        db_names.sort();
+        let entries = if let Some(name) = db_names.first() {
+            list_entries(&env, name, 100)?
+        } else {
+            Vec::new()
+        };
+        Ok(Self {
+            env,
+            db_names,
+            selected: 0,
+            entries,
+            view: vec![View::Main],
+            running: true,
+            query: String::new(),
+            show_help: false,
+            help_query: String::new(),
+        })
+    }
+
+    pub fn current_view(&self) -> View {
+        *self.view.last().unwrap_or(&View::Main)
+    }
+
+    pub fn reduce(&mut self, action: Action) -> Result<()> {
+        match action {
+            Action::Quit => self.running = false,
+            Action::NextDb => {
+                if !self.db_names.is_empty() {
+                    self.selected = (self.selected + 1) % self.db_names.len();
+                    let name = &self.db_names[self.selected];
+                    self.entries = list_entries(&self.env, name, 100)?;
+                }
+            }
+            Action::PrevDb => {
+                if !self.db_names.is_empty() {
+                    if self.selected == 0 {
+                        self.selected = self.db_names.len() - 1;
+                    } else {
+                        self.selected -= 1;
+                    }
+                    let name = &self.db_names[self.selected];
+                    self.entries = list_entries(&self.env, name, 100)?;
+                }
+            }
+            Action::EnterQuery => self.view.push(View::Query),
+            Action::ExitView => {
+                if self.view.len() > 1 {
+                    self.view.pop();
+                } else {
+                    self.running = false;
+                }
+            }
+            Action::ToggleHelp => {
+                self.show_help = !self.show_help;
+                if !self.show_help {
+                    self.help_query.clear();
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Run the TUI application.
 pub fn run(path: &Path, read_only: bool) -> Result<()> {
     let _raw = RawModeGuard::new()?;
     let mut stdout = io::stdout();
@@ -71,107 +167,85 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let env = open_env(path, read_only)?;
-    let mut db_names = list_databases(&env)?;
-    db_names.sort();
-    let mut selected = 0usize;
-    let mut entries = if let Some(name) = db_names.first() {
-        list_entries(&env, name, 100)?
-    } else {
-        Vec::new()
-    };
-    let mut show_help = false;
-    let mut help_query = String::new();
+    let names = list_databases(&env)?;
+    let mut app = App::new(env, names)?;
 
-    loop {
+    while app.running {
         terminal.draw(|f| {
-            let chunks = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(30), Constraint::Percentage(70)].as_ref())
-                .split(f.size());
-
-            let items: Vec<ListItem> = db_names
-                .iter()
-                .enumerate()
-                .map(|(i, name)| {
-                    let content = if i == selected {
-                        Span::styled(
-                            name.clone(),
-                            Style::default().add_modifier(Modifier::REVERSED),
-                        )
-                    } else {
-                        Span::raw(name.clone())
-                    };
-                    ListItem::new(content)
-                })
-                .collect();
-            let list =
-                List::new(items).block(Block::default().borders(Borders::ALL).title("Databases"));
-            f.render_widget(list, chunks[0]);
-
-            let kv_items: Vec<ListItem> = entries
-                .iter()
-                .map(|(k, v)| {
-                    let val_str = String::from_utf8_lossy(v);
-                    let text = format!("{}: {}", k, val_str);
-                    ListItem::new(text)
-                })
-                .collect();
-            let kv_list =
-                List::new(kv_items).block(Block::default().borders(Borders::ALL).title("Entries"));
-            f.render_widget(kv_list, chunks[1]);
-
-            if show_help {
+            ui::render(f, &app);
+            if app.show_help {
                 let area = centered_rect(60, 60, f.size());
-                help::render(f, area, &help_query, DEFAULT_ENTRIES);
+                help::render(f, area, &app.help_query, DEFAULT_ENTRIES);
             }
         })?;
 
         if event::poll(Duration::from_millis(200))? {
             if let Event::Key(key) = event::read()? {
-                if show_help {
+                if app.show_help {
                     match key.code {
                         KeyCode::Esc | KeyCode::Char('q') => {
-                            show_help = false;
-                            help_query.clear();
+                            app.reduce(Action::ToggleHelp)?;
                         }
                         KeyCode::Backspace => {
-                            help_query.pop();
+                            app.help_query.pop();
                         }
                         KeyCode::Char(c) => {
-                            help_query.push(c);
+                            app.help_query.push(c);
                         }
                         _ => {}
                     }
                     continue;
                 }
-                match key.code {
-                    KeyCode::Char('?') => {
-                        show_help = true;
-                    }
-                    KeyCode::Char('q') => break,
-                    KeyCode::Down => {
-                        if !db_names.is_empty() {
-                            selected = (selected + 1) % db_names.len();
-                            let name = &db_names[selected];
-                            entries = list_entries(&env, name, 100)?;
-                        }
-                    }
-                    KeyCode::Up => {
-                        if !db_names.is_empty() {
-                            selected = if selected == 0 {
-                                db_names.len() - 1
-                            } else {
-                                selected - 1
-                            };
-                            let name = &db_names[selected];
-                            entries = list_entries(&env, name, 100)?;
-                        }
-                    }
-                    _ => {}
+                let action = match app.current_view() {
+                    View::Main => match key.code {
+                        KeyCode::Char('q') => Some(Action::Quit),
+                        KeyCode::Char('?') => Some(Action::ToggleHelp),
+                        KeyCode::Char('/') => Some(Action::EnterQuery),
+                        KeyCode::Down => Some(Action::NextDb),
+                        KeyCode::Up => Some(Action::PrevDb),
+                        _ => None,
+                    },
+                    View::Query => match key.code {
+                        KeyCode::Esc | KeyCode::Char('q') => Some(Action::ExitView),
+                        _ => None,
+                    },
+                };
+                if let Some(act) = action {
+                    app.reduce(act)?;
                 }
             }
         }
     }
+    Ok(())
+}
 
+pub fn run_plain(path: &Path, read_only: bool, json: bool) -> Result<()> {
+    let env = open_env(path, read_only)?;
+    let mut names = list_databases(&env)?;
+    names.sort();
+    let output = if json {
+        serde_json::to_string_pretty(&names)? + "\n"
+    } else {
+        names.join("\n") + "\n"
+    };
+    output_with_pager(&output)?;
+    Ok(())
+}
+
+fn output_with_pager(text: &str) -> io::Result<()> {
+    if let Ok(pager) = std::env::var("PAGER") {
+        if !pager.is_empty() {
+            let mut child = std::process::Command::new(pager)
+                .stdin(std::process::Stdio::piped())
+                .spawn()?;
+            if let Some(stdin) = &mut child.stdin {
+                use std::io::Write;
+                stdin.write_all(text.as_bytes())?;
+            }
+            child.wait()?;
+            return Ok(());
+        }
+    }
+    print!("{}", text);
     Ok(())
 }
