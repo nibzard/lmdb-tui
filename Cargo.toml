@@ -29,6 +29,7 @@ indicatif = "0.17"
 assert_cmd = "2"
 predicates = "3"
 tempfile = "3"
+criterion = "0.5"
 
 [package.metadata]
 authors = ["Nikola Balic @nibzard"]

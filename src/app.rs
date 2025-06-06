@@ -11,6 +11,9 @@ use heed::Env;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
+use crate::db::stats::{DbStats, EnvStats};
+use crate::jobs::{JobQueue, JobResult};
+
 use crate::db::env::{list_databases, list_entries, open_env};
 use crate::ui::{self, help::{self, DEFAULT_ENTRIES}};
 use ratatui::layout::{Constraint, Direction, Layout};
@@ -90,6 +93,9 @@ pub struct App {
     view: Vec<View>,
     running: bool,
     pub query: String,
+    pub job_queue: JobQueue,
+    pub env_stats: Option<EnvStats>,
+    pub db_stats: Option<DbStats>,
     pub show_help: bool,
     pub help_query: String,
 }
@@ -102,6 +108,13 @@ impl App {
         } else {
             Vec::new()
         };
+        
+        let mut job_queue = JobQueue::new(env.clone());
+        job_queue.request_env_stats()?;
+        if let Some(name) = db_names.first() {
+            job_queue.request_db_stats(name.clone())?;
+        }
+        
         Ok(Self {
             env,
             db_names,
@@ -110,6 +123,9 @@ impl App {
             view: vec![View::Main],
             running: true,
             query: String::new(),
+            job_queue,
+            env_stats: None,
+            db_stats: None,
             show_help: false,
             help_query: String::new(),
         })
@@ -117,6 +133,15 @@ impl App {
 
     pub fn current_view(&self) -> View {
         *self.view.last().unwrap_or(&View::Main)
+    }
+
+    pub fn process_background_jobs(&mut self) {
+        while let Ok(msg) = self.job_queue.receiver.try_recv() {
+            match msg {
+                JobResult::Env(s) => self.env_stats = Some(s),
+                JobResult::Db(_, s) => self.db_stats = Some(s),
+            }
+        }
     }
 
     pub fn reduce(&mut self, action: Action) -> Result<()> {
@@ -127,6 +152,7 @@ impl App {
                     self.selected = (self.selected + 1) % self.db_names.len();
                     let name = &self.db_names[self.selected];
                     self.entries = list_entries(&self.env, name, 100)?;
+                    self.job_queue.request_db_stats(name.clone())?;
                 }
             }
             Action::PrevDb => {
@@ -138,6 +164,7 @@ impl App {
                     }
                     let name = &self.db_names[self.selected];
                     self.entries = list_entries(&self.env, name, 100)?;
+                    self.job_queue.request_db_stats(name.clone())?;
                 }
             }
             Action::EnterQuery => self.view.push(View::Query),
@@ -171,6 +198,7 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
     let mut app = App::new(env, names)?;
 
     while app.running {
+        app.process_background_jobs();
         terminal.draw(|f| {
             ui::render(f, &app);
             if app.show_help {

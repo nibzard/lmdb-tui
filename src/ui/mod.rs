@@ -1,6 +1,7 @@
 pub mod db_view;
 pub mod help;
 pub mod query;
+pub mod stats;
 
 use ratatui::prelude::Frame;
 

@@ -37,10 +37,10 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 017. [x] **mid** Snapshot tests for query UI
 
 ### Phase 4 – Visuals and Stats
-018. [ ] **mid** FR-07: environment and DB statistics panes
-019. [ ] **lo** FR-08: bookmarks and jump-to-key history
-020. [ ] **mid** Background job queue for statistics (tokio tasks)
-021. [ ] **mid** Benchmarks for scanning 1M keys/sec
+018. [x] **mid** FR-07: environment and DB statistics panes
+019. [x] **lo** FR-08: bookmarks and jump-to-key history
+020. [x] **mid** Background job queue for statistics (tokio tasks)
+021. [x] **mid** Benchmarks for scanning 1M keys/sec
 
 ### Phase 5 – Export & Import
 022. [ ] **mid** FR-09: export/import in JSON or CSV
