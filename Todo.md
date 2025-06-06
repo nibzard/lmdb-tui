@@ -37,10 +37,10 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 017. [x] **mid** Snapshot tests for query UI
 
 ### Phase 4 – Visuals and Stats
-018. [ ] **mid** FR-07: environment and DB statistics panes
-019. [ ] **lo** FR-08: bookmarks and jump-to-key history
-020. [ ] **mid** Background job queue for statistics (tokio tasks)
-021. [ ] **mid** Benchmarks for scanning 1M keys/sec
+018. [x] **mid** FR-07: environment and DB statistics panes
+019. [x] **lo** FR-08: bookmarks and jump-to-key history
+020. [x] **mid** Background job queue for statistics (tokio tasks)
+021. [x] **mid** Benchmarks for scanning 1M keys/sec
 
 ### Phase 5 – Export & Import
 022. [ ] **mid** FR-09: export/import in JSON or CSV
@@ -49,7 +49,7 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 
 ### Phase 6 – Polish & Docs
 025. [ ] **mid** FR-10: configurable keybindings and themes
-026. [ ] **lo** FR-12: embedded help screen with searchable palette
+026. [x] **lo** FR-12: embedded help screen with searchable palette
 027. [x] **mid** Packaging scripts: cross-build, Homebrew/Scoop manifests
 028. [ ] **mid** Usage examples and screenshots in README
 029. [ ] **mid** Document config format in `docs/`
@@ -70,7 +70,7 @@ needed to build *lmdb-tui*. Use it to track progress and priorities.
 040. [x] **mid** `jobs` async workers and channels
 041. [~] **mid** `config` load/save YAML/TOML settings
 042. [x] **lo** `util` helpers (hex/utf-8, formatting)
-043. [ ] **mid** `errors` define `AppError` via `thiserror`
+043. [x] **mid** `errors` define `AppError` via `thiserror`
 
 ## Non-Functional Goals
 044. [ ] **mid** Keep RSS under 200 MB via streaming

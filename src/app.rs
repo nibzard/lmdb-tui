@@ -11,8 +11,42 @@ use heed::Env;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
+use crate::db::stats::{DbStats, EnvStats};
+use crate::jobs::{JobQueue, JobResult};
+
 use crate::db::env::{list_databases, list_entries, open_env};
-use crate::ui;
+use crate::ui::{self, help::{self, DEFAULT_ENTRIES}};
+use ratatui::layout::{Constraint, Direction, Layout};
+
+fn centered_rect(
+    percent_x: u16,
+    percent_y: u16,
+    r: ratatui::layout::Rect,
+) -> ratatui::layout::Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_y) / 2),
+                Constraint::Percentage(percent_y),
+                Constraint::Percentage((100 - percent_y) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(r);
+    let vertical = popup_layout[1];
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_x) / 2),
+                Constraint::Percentage(percent_x),
+                Constraint::Percentage((100 - percent_x) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(vertical)[1]
+}
 
 /// Guard that enables raw mode on creation and disables it on drop.
 pub struct RawModeGuard;
@@ -46,6 +80,7 @@ pub enum Action {
     PrevDb,
     EnterQuery,
     ExitView,
+    ToggleHelp,
     Quit,
 }
 
@@ -58,6 +93,11 @@ pub struct App {
     view: Vec<View>,
     running: bool,
     pub query: String,
+    pub job_queue: JobQueue,
+    pub env_stats: Option<EnvStats>,
+    pub db_stats: Option<DbStats>,
+    pub show_help: bool,
+    pub help_query: String,
 }
 
 impl App {
@@ -68,6 +108,13 @@ impl App {
         } else {
             Vec::new()
         };
+        
+        let mut job_queue = JobQueue::new(env.clone());
+        job_queue.request_env_stats()?;
+        if let Some(name) = db_names.first() {
+            job_queue.request_db_stats(name.clone())?;
+        }
+        
         Ok(Self {
             env,
             db_names,
@@ -76,11 +123,25 @@ impl App {
             view: vec![View::Main],
             running: true,
             query: String::new(),
+            job_queue,
+            env_stats: None,
+            db_stats: None,
+            show_help: false,
+            help_query: String::new(),
         })
     }
 
     pub fn current_view(&self) -> View {
         *self.view.last().unwrap_or(&View::Main)
+    }
+
+    pub fn process_background_jobs(&mut self) {
+        while let Ok(msg) = self.job_queue.receiver.try_recv() {
+            match msg {
+                JobResult::Env(s) => self.env_stats = Some(s),
+                JobResult::Db(_, s) => self.db_stats = Some(s),
+            }
+        }
     }
 
     pub fn reduce(&mut self, action: Action) -> Result<()> {
@@ -91,6 +152,7 @@ impl App {
                     self.selected = (self.selected + 1) % self.db_names.len();
                     let name = &self.db_names[self.selected];
                     self.entries = list_entries(&self.env, name, 100)?;
+                    self.job_queue.request_db_stats(name.clone())?;
                 }
             }
             Action::PrevDb => {
@@ -102,6 +164,7 @@ impl App {
                     }
                     let name = &self.db_names[self.selected];
                     self.entries = list_entries(&self.env, name, 100)?;
+                    self.job_queue.request_db_stats(name.clone())?;
                 }
             }
             Action::EnterQuery => self.view.push(View::Query),
@@ -110,6 +173,12 @@ impl App {
                     self.view.pop();
                 } else {
                     self.running = false;
+                }
+            }
+            Action::ToggleHelp => {
+                self.show_help = !self.show_help;
+                if !self.show_help {
+                    self.help_query.clear();
                 }
             }
         }
@@ -129,13 +198,36 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
     let mut app = App::new(env, names)?;
 
     while app.running {
-        terminal.draw(|f| ui::render(f, &app))?;
+        app.process_background_jobs();
+        terminal.draw(|f| {
+            ui::render(f, &app);
+            if app.show_help {
+                let area = centered_rect(60, 60, f.size());
+                help::render(f, area, &app.help_query, DEFAULT_ENTRIES);
+            }
+        })?;
 
         if event::poll(Duration::from_millis(200))? {
             if let Event::Key(key) = event::read()? {
+                if app.show_help {
+                    match key.code {
+                        KeyCode::Esc | KeyCode::Char('q') => {
+                            app.reduce(Action::ToggleHelp)?;
+                        }
+                        KeyCode::Backspace => {
+                            app.help_query.pop();
+                        }
+                        KeyCode::Char(c) => {
+                            app.help_query.push(c);
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
                 let action = match app.current_view() {
                     View::Main => match key.code {
                         KeyCode::Char('q') => Some(Action::Quit),
+                        KeyCode::Char('?') => Some(Action::ToggleHelp),
                         KeyCode::Char('/') => Some(Action::EnterQuery),
                         KeyCode::Down => Some(Action::NextDb),
                         KeyCode::Up => Some(Action::PrevDb),
