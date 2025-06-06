@@ -38,6 +38,10 @@ To view the current version:
 lmdb-tui --version
 ```
 
+## Configuration
+
+If present, `~/.config/lmdb-tui/config.toml` is loaded on startup. The file allows overriding keybindings and colours used in the UI.
+
 ## Packaging
 
 Release binaries can be produced with the helper scripts in `scripts/`.

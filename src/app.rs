@@ -14,6 +14,7 @@ use ratatui::Terminal;
 use crate::db::stats::{DbStats, EnvStats};
 use crate::jobs::{JobQueue, JobResult};
 
+use crate::config::Config;
 use crate::db::env::{list_databases, list_entries, open_env};
 use crate::ui::{self, help::{self, DEFAULT_ENTRIES}};
 use ratatui::layout::{Constraint, Direction, Layout};
@@ -193,6 +194,7 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
     let backend = CrosstermBackend::new(&mut stdout);
     let mut terminal = Terminal::new(backend)?;
 
+    let _config = Config::load()?;
     let env = open_env(path, read_only)?;
     let names = list_databases(&env)?;
     let mut app = App::new(env, names)?;
