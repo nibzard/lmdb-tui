@@ -907,6 +907,7 @@ dependencies = [
  "indicatif",
  "jsonpath_lib",
  "log",
+ "once_cell",
  "predicates",
  "ratatui",
  "regex",
