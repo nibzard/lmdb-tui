@@ -7,3 +7,4 @@ pub mod errors;
 pub mod jobs;
 pub mod ui;
 pub mod util;
+pub mod worker;

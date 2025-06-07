@@ -1,4 +1,4 @@
-use lmdb_tui::jobs::Worker;
+use lmdb_tui::worker::Worker;
 
 #[tokio::test]
 async fn worker_processes_requests() -> anyhow::Result<()> {

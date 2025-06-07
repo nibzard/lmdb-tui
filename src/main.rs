@@ -4,15 +4,14 @@ use std::process::{Command, Stdio};
 
 use clap::{command, CommandFactory, Parser};
 use heed::Error as HeedError;
-use log::LevelFilter;
-
-use heed::Error as HeedError;
 use lmdb_tui::app;
+use log::LevelFilter;
 
 /// Simple LMDB TUI explorer
 #[derive(Debug, Parser)]
 #[command(
     author,
+    version,
     about = "Simple LMDB TUI explorer",
     arg_required_else_help = true,
     after_help = "Examples:\n  lmdb-tui path/to/env\n  lmdb-tui --plain path/to/env\n\nFull docs: https://lmdb.nibzard.com"
@@ -42,8 +41,6 @@ struct Cli {
     verbose: u8,
 }
 
-const AFTER_HELP: &str = "Examples:\n    lmdb-tui ./env\n    lmdb-tui --read-only ./env\n\nSee the README for details: https://lmdb.nibzard.com";
-
 fn main() {
     handle_help_pager();
     let cli = Cli::parse();
@@ -64,22 +61,28 @@ fn main() {
 
 fn handle_help_pager() {
     let args: Vec<String> = std::env::args().collect();
-    if args.len() == 1 || args.iter().any(|a| a == "--help" || a == "-h") {
+    if args.iter().any(|a| a == "--help" || a == "-h")
+        || args.iter().any(|a| a == "--version" || a == "-V")
+    {
         let mut cmd = Cli::command();
         let mut buf = Vec::new();
-        cmd.write_long_help(&mut buf).unwrap();
-        let help = String::from_utf8(buf).unwrap();
-        if let Ok(pager) = std::env::var("PAGER") {
-            if let Ok(mut child) = Command::new(pager).stdin(Stdio::piped()).spawn() {
-                if let Some(mut stdin) = child.stdin.take() {
-                    let _ = stdin.write_all(help.as_bytes());
+        if args.iter().any(|a| a == "--version" || a == "-V") {
+            println!("{}", cmd.render_version());
+        } else {
+            cmd.write_long_help(&mut buf).unwrap();
+            let help = String::from_utf8(buf).unwrap();
+            if let Ok(pager) = std::env::var("PAGER") {
+                if let Ok(mut child) = Command::new(pager).stdin(Stdio::piped()).spawn() {
+                    if let Some(mut stdin) = child.stdin.take() {
+                        let _ = stdin.write_all(help.as_bytes());
+                    }
+                    let _ = child.wait();
+                } else {
+                    println!("{help}");
                 }
-                let _ = child.wait();
             } else {
                 println!("{help}");
             }
-        } else {
-            println!("{help}");
         }
         std::process::exit(0);
     }
