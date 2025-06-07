@@ -99,7 +99,7 @@ This roadmap derives from [`SPECS.md`](SPECS.md) and lists the concrete steps ne
 ### Advanced Features
 030. [ ] **lo** Remote mode via agent process
 031. [ ] **lo** gRPC server for automation
-032. [ ] **lo** WebAssembly build
+032. [x] **lo** WebAssembly build
 033. [ ] **lo** Plugin API for custom decoders
 
 ---

@@ -7,3 +7,4 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Configuration: configuration.md
+  - WebAssembly: webassembly.md
