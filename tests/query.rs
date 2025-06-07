@@ -1,7 +1,7 @@
 use heed::types::{Bytes, Str};
 use lmdb_tui::db::{
     env::open_env,
-    query::{self, decode_value, Mode},
+    query::{self, decode_value, parse_query, Mode},
 };
 use regex::Regex;
 use tempfile::tempdir;
@@ -105,5 +105,39 @@ fn decode_value_parses_formats() -> anyhow::Result<()> {
     let v2 = decode_value(&mp_bytes)?;
 
     assert_eq!(v1, v2);
+    Ok(())
+}
+
+#[test]
+fn parse_query_parses_variants() -> anyhow::Result<()> {
+    if let query::Mode::Prefix(pre) = parse_query("prefix foo")? {
+        assert_eq!(pre, "foo");
+    } else {
+        panic!("expected prefix mode");
+    }
+
+    match parse_query("range a z")? {
+        query::Mode::Range(start, end) => {
+            assert_eq!(start, "a");
+            assert_eq!(end, "z");
+        }
+        _ => panic!("expected range mode"),
+    }
+
+    match parse_query("regex ^foo$")? {
+        query::Mode::Regex(re) => {
+            assert!(re.is_match("foo"));
+            assert!(!re.is_match("bar"));
+        }
+        _ => panic!("expected regex mode"),
+    }
+
+    match parse_query("jsonpath $.key")? {
+        query::Mode::JsonPath(path) => assert_eq!(path, "$.key"),
+        _ => panic!("expected jsonpath mode"),
+    }
+
+    assert!(parse_query("").is_err());
+
     Ok(())
 }

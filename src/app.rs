@@ -16,7 +16,10 @@ use crate::jobs::{JobQueue, JobResult};
 
 use crate::config::Config;
 use crate::db::env::{list_databases, list_entries, open_env};
-use crate::ui::{self, help::{self, DEFAULT_ENTRIES}};
+use crate::ui::{
+    self,
+    help::{self, DEFAULT_ENTRIES},
+};
 use ratatui::layout::{Constraint, Direction, Layout};
 
 fn centered_rect(
@@ -94,6 +97,8 @@ pub struct App {
     view: Vec<View>,
     running: bool,
     pub query: String,
+    pub query_results: Vec<(String, Vec<u8>)>,
+    pub query_selected: usize,
     pub job_queue: JobQueue,
     pub env_stats: Option<EnvStats>,
     pub db_stats: Option<DbStats>,
@@ -110,13 +115,13 @@ impl App {
         } else {
             Vec::new()
         };
-        
+
         let job_queue = JobQueue::new(env.clone());
         job_queue.request_env_stats()?;
         if let Some(name) = db_names.first() {
             job_queue.request_db_stats(name.clone())?;
         }
-        
+
         Ok(Self {
             env,
             db_names,
@@ -125,6 +130,8 @@ impl App {
             view: vec![View::Main],
             running: true,
             query: String::new(),
+            query_results: Vec::new(),
+            query_selected: 0,
             job_queue,
             env_stats: None,
             db_stats: None,
@@ -145,6 +152,18 @@ impl App {
                 JobResult::Db(_, s) => self.db_stats = Some(s),
             }
         }
+    }
+
+    pub fn run_query(&mut self) -> Result<()> {
+        if self.db_names.is_empty() {
+            self.query_results.clear();
+            return Ok(());
+        }
+        let db = &self.db_names[self.selected];
+        let mode = crate::db::query::parse_query(&self.query)?;
+        self.query_results = crate::db::query::scan(&self.env, db, mode, 100)?;
+        self.query_selected = 0;
+        Ok(())
     }
 
     pub fn reduce(&mut self, action: Action) -> Result<()> {
@@ -170,10 +189,21 @@ impl App {
                     self.job_queue.request_db_stats(name.clone())?;
                 }
             }
-            Action::EnterQuery => self.view.push(View::Query),
+            Action::EnterQuery => {
+                self.view.push(View::Query);
+                self.query.clear();
+                self.query_results.clear();
+                self.query_selected = 0;
+            }
             Action::ExitView => {
                 if self.view.len() > 1 {
-                    self.view.pop();
+                    if let Some(leaving) = self.view.pop() {
+                        if leaving == View::Query {
+                            self.query.clear();
+                            self.query_results.clear();
+                            self.query_selected = 0;
+                        }
+                    }
                 } else {
                     // Don't exit from the main view, just quit the app
                     self.running = false;
@@ -249,13 +279,43 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                             None
                         }
                     }
-                    View::Query => {
-                        if key.code == KeyCode::Esc || key.code == app.config.keybindings.quit {
+                    View::Query => match key.code {
+                        k if k == KeyCode::Esc || k == app.config.keybindings.quit => {
                             Some(Action::ExitView)
-                        } else {
+                        }
+                        KeyCode::Backspace => {
+                            app.query.pop();
                             None
                         }
-                    }
+                        KeyCode::Char(c) => {
+                            app.query.push(c);
+                            None
+                        }
+                        KeyCode::Enter => {
+                            if let Err(e) = app.run_query() {
+                                log::warn!("query failed: {}", e);
+                            }
+                            None
+                        }
+                        k if k == app.config.keybindings.down => {
+                            if !app.query_results.is_empty() {
+                                app.query_selected =
+                                    (app.query_selected + 1) % app.query_results.len();
+                            }
+                            None
+                        }
+                        k if k == app.config.keybindings.up => {
+                            if !app.query_results.is_empty() {
+                                if app.query_selected == 0 {
+                                    app.query_selected = app.query_results.len() - 1;
+                                } else {
+                                    app.query_selected -= 1;
+                                }
+                            }
+                            None
+                        }
+                        _ => None,
+                    },
                 };
                 if let Some(act) = action {
                     app.reduce(act)?;
