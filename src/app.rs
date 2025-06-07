@@ -15,8 +15,11 @@ use crate::db::stats::{DbStats, EnvStats};
 use crate::jobs::{JobQueue, JobResult};
 
 use crate::config::Config;
-use crate::db::env::{list_databases, list_entries, open_env};
-use crate::ui::{self, help::{self, DEFAULT_ENTRIES}};
+use crate::db::env::{list_databases, list_entries, open_env, DEFAULT_ENTRY_LIMIT};
+use crate::ui::{
+    self,
+    help::{self, DEFAULT_ENTRIES},
+};
 use ratatui::layout::{Constraint, Direction, Layout};
 
 fn centered_rect(
@@ -106,17 +109,17 @@ impl App {
     pub fn new(env: Env, mut db_names: Vec<String>, config: Config) -> Result<Self> {
         db_names.sort();
         let entries = if let Some(name) = db_names.first() {
-            list_entries(&env, name, 100)?
+            list_entries(&env, name, DEFAULT_ENTRY_LIMIT)?
         } else {
             Vec::new()
         };
-        
+
         let job_queue = JobQueue::new(env.clone());
         job_queue.request_env_stats()?;
         if let Some(name) = db_names.first() {
             job_queue.request_db_stats(name.clone())?;
         }
-        
+
         Ok(Self {
             env,
             db_names,
@@ -154,7 +157,7 @@ impl App {
                 if !self.db_names.is_empty() {
                     self.selected = (self.selected + 1) % self.db_names.len();
                     let name = &self.db_names[self.selected];
-                    self.entries = list_entries(&self.env, name, 100)?;
+                    self.entries = list_entries(&self.env, name, DEFAULT_ENTRY_LIMIT)?;
                     self.job_queue.request_db_stats(name.clone())?;
                 }
             }
@@ -166,7 +169,7 @@ impl App {
                         self.selected -= 1;
                     }
                     let name = &self.db_names[self.selected];
-                    self.entries = list_entries(&self.env, name, 100)?;
+                    self.entries = list_entries(&self.env, name, DEFAULT_ENTRY_LIMIT)?;
                     self.job_queue.request_db_stats(name.clone())?;
                 }
             }
@@ -285,7 +288,7 @@ fn output_with_pager(text: &str) -> io::Result<()> {
             let mut child = std::process::Command::new(pager)
                 .stdin(std::process::Stdio::piped())
                 .spawn()?;
-            if let Some(stdin) = &mut child.stdin {
+            if let Some(mut stdin) = child.stdin.take() {
                 use std::io::Write;
                 stdin.write_all(text.as_bytes())?;
             }

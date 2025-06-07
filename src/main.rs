@@ -4,8 +4,8 @@ use std::process::{Command, Stdio};
 
 use clap::{command, CommandFactory, Parser};
 use heed::Error as HeedError;
-use log::LevelFilter;
 use lmdb_tui::app;
+use log::LevelFilter;
 
 /// Simple LMDB TUI explorer
 #[derive(Debug, Parser)]
@@ -61,6 +61,25 @@ fn main() {
 
 fn handle_help_pager() {
     let args: Vec<String> = std::env::args().collect();
+    if args.len() == 1 {
+        let mut cmd = Cli::command();
+        let mut buf = Vec::new();
+        cmd.write_long_help(&mut buf).unwrap();
+        let help = String::from_utf8(buf).unwrap();
+        if let Ok(pager) = std::env::var("PAGER") {
+            if let Ok(mut child) = Command::new(pager).stdin(Stdio::piped()).spawn() {
+                if let Some(mut stdin) = child.stdin.take() {
+                    let _ = stdin.write_all(help.as_bytes());
+                }
+                let _ = child.wait();
+            } else {
+                println!("{help}");
+            }
+        } else {
+            println!("{help}");
+        }
+        std::process::exit(0);
+    }
     if args.iter().any(|a| a == "--help" || a == "-h")
         || args.iter().any(|a| a == "--version" || a == "-V")
     {
@@ -109,7 +128,6 @@ fn exit_code(e: &anyhow::Error) -> i32 {
         if let Some(io) = cause.downcast_ref::<std::io::Error>() {
             use std::io::ErrorKind::*;
             return match io.kind() {
-                NotFound => 2,
                 PermissionDenied => 3,
                 _ => 1,
             };
@@ -117,7 +135,6 @@ fn exit_code(e: &anyhow::Error) -> i32 {
         if let Some(HeedError::Io(io)) = cause.downcast_ref::<HeedError>() {
             use std::io::ErrorKind::*;
             return match io.kind() {
-                NotFound => 2,
                 PermissionDenied => 3,
                 _ => 1,
             };
