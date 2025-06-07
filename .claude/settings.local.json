@@ -5,7 +5,8 @@
       "Bash(gh pr view:*)",
       "Bash(git checkout:*)",
       "Bash(gh pr checkout:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(cargo test)"
     ],
     "deny": []
   }
