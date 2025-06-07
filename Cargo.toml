@@ -8,6 +8,7 @@ license = "Apache-2.0"
 [lib]
 name = "lmdb_tui"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
@@ -29,6 +30,11 @@ base64 = "0.21"
 rmp-serde = "1"
 csv = "1"
 indicatif = "0.17"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+console_error_panic_hook = "0.1"
+wasm-logger = "0.2"
 
 [dev-dependencies]
 assert_cmd = "2"
