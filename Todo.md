@@ -75,6 +75,21 @@ This roadmap derives from [`SPECS.md`](SPECS.md) and lists the concrete steps ne
 036. [ ] **lo** Inline single-use helper functions (centered_rect)
 037. [ ] **mid** Add more comprehensive integration tests
 
+### Test Suite Reorganization & Refactoring
+054. [ ] **hi** Reorganize test structure into unit/, integration/, performance/, ui/ directories
+055. [ ] **hi** Migrate shell scripts from experiments/ to structured Rust integration tests
+056. [ ] **mid** Expand UI testing coverage (currently only 2 UI tests for TUI-focused app)
+057. [ ] **mid** Add comprehensive TUI interaction testing (keyboard navigation, screen transitions)
+058. [ ] **mid** Implement property-based testing for query engine edge cases
+059. [ ] **mid** Add configuration system testing (config file loading, validation, overrides)
+060. [ ] **mid** Test background jobs and async operations
+061. [ ] **mid** Add Unicode/binary data testing (non-UTF8 keys and values)
+062. [ ] **mid** Test concurrent access scenarios (read-only during writes, multiple readers)
+063. [ ] **mid** Add error recovery testing (corrupted databases, permission issues)
+064. [ ] **mid** Create centralized test fixtures and builders (replace dynamic generation)
+065. [ ] **lo** Establish performance baselines and regression testing
+066. [ ] **lo** Add memory constraint and large dataset testing
+
 ---
 
 ## Future Enhancements (Backlog)
