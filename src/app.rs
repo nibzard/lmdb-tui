@@ -23,36 +23,6 @@ use crate::ui::{
 };
 use ratatui::layout::{Constraint, Direction, Layout};
 
-fn centered_rect(
-    percent_x: u16,
-    percent_y: u16,
-    r: ratatui::layout::Rect,
-) -> ratatui::layout::Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Percentage((100 - percent_y) / 2),
-                Constraint::Percentage(percent_y),
-                Constraint::Percentage((100 - percent_y) / 2),
-            ]
-            .as_ref(),
-        )
-        .split(r);
-    let vertical = popup_layout[1];
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(
-            [
-                Constraint::Percentage((100 - percent_x) / 2),
-                Constraint::Percentage(percent_x),
-                Constraint::Percentage((100 - percent_x) / 2),
-            ]
-            .as_ref(),
-        )
-        .split(vertical)[1]
-}
-
 /// Guard that enables raw mode on creation and disables it on drop.
 pub struct RawModeGuard;
 
@@ -239,7 +209,29 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
         terminal.draw(|f| {
             ui::render(f, &app);
             if app.show_help {
-                let area = centered_rect(60, 60, f.size());
+                let popup_layout = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints(
+                        [
+                            Constraint::Percentage((100 - 60) / 2),
+                            Constraint::Percentage(60),
+                            Constraint::Percentage((100 - 60) / 2),
+                        ]
+                        .as_ref(),
+                    )
+                    .split(f.size());
+                let vertical = popup_layout[1];
+                let area = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints(
+                        [
+                            Constraint::Percentage((100 - 60) / 2),
+                            Constraint::Percentage(60),
+                            Constraint::Percentage((100 - 60) / 2),
+                        ]
+                        .as_ref(),
+                    )
+                    .split(vertical)[1];
                 help::render(f, area, &app.help_query, DEFAULT_ENTRIES);
             }
         })?;
