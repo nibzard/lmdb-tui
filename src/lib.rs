@@ -2,6 +2,7 @@ pub mod app;
 pub mod bookmarks;
 pub mod commands;
 pub mod config;
+pub mod constants;
 pub mod db;
 pub mod errors;
 pub mod jobs;
