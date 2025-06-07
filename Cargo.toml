@@ -36,5 +36,9 @@ predicates = "3"
 tempfile = "3"
 criterion = "0.5"
 
+[[bin]]
+name = "lmdb-tui-agent"
+path = "src/bin/agent.rs"
+
 [package.metadata]
 authors = ["Nikola Balic @nibzard"]

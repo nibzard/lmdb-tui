@@ -5,5 +5,6 @@ pub mod config;
 pub mod db;
 pub mod errors;
 pub mod jobs;
+pub mod remote;
 pub mod ui;
 pub mod util;
