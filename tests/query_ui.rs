@@ -1,3 +1,4 @@
+use lmdb_tui::config::Config;
 use lmdb_tui::ui::query;
 use ratatui::{backend::TestBackend, Terminal};
 
@@ -8,7 +9,8 @@ fn query_view_snapshot() -> anyhow::Result<()> {
     let entries = vec![("foo".to_string(), b"bar".to_vec())];
     terminal.draw(|f| {
         let size = f.size();
-        query::render(f, size, "prefix f", &entries);
+        let cfg = Config::default();
+        query::render(f, size, "prefix f", &entries, 1, &cfg);
     })?;
     terminal.backend().assert_buffer_lines([
         "┌Query─────────────┐",

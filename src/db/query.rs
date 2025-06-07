@@ -29,6 +29,41 @@ pub enum Mode<'a> {
     JsonPath(&'a str),
 }
 
+/// Parse a user supplied query string into a [`Mode`].
+///
+/// Supported formats:
+/// - `"prefix <value>"` performs a prefix match on keys
+/// - `"range <start> <end>"` or `"range <start>..<end>"`
+/// - `"regex <expr>"` interprets `<expr>` as a regular expression
+/// - `"jsonpath <expr>"` filters decoded JSON values with a JSONPath
+///
+/// Any string without a recognised prefix defaults to `Mode::Prefix` using the
+/// entire input as the prefix.
+pub fn parse_query(input: &str) -> Result<Mode<'_>> {
+    let trimmed = input.trim();
+    if let Some(rest) = trimmed.strip_prefix("prefix ") {
+        return Ok(Mode::Prefix(rest));
+    }
+    if let Some(rest) = trimmed.strip_prefix("range ") {
+        if let Some((start, end)) = rest.split_once("..") {
+            return Ok(Mode::Range(start.trim(), end.trim()));
+        }
+        let mut parts = rest.split_whitespace();
+        if let (Some(start), Some(end)) = (parts.next(), parts.next()) {
+            return Ok(Mode::Range(start, end));
+        }
+        return Err(anyhow!("invalid range query"));
+    }
+    if let Some(rest) = trimmed.strip_prefix("regex ") {
+        let re = Regex::new(rest)?;
+        return Ok(Mode::Regex(re));
+    }
+    if let Some(rest) = trimmed.strip_prefix("jsonpath ") {
+        return Ok(Mode::JsonPath(rest));
+    }
+    Ok(Mode::Prefix(trimmed))
+}
+
 pub fn scan(
     env: &Env,
     db_name: &str,

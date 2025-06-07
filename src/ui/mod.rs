@@ -24,7 +24,14 @@ pub fn render(f: &mut Frame, app: &App) {
             &app.entries,
             &app.config,
         ),
-        View::Query => query::render(f, chunks[0], &app.query, &app.entries),
+        View::Query => query::render(
+            f,
+            chunks[0],
+            &app.query,
+            &app.entries,
+            app.query_cursor,
+            &app.config,
+        ),
     }
     status::render(f, chunks[1], &app.config);
 }
