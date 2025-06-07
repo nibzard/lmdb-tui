@@ -98,6 +98,8 @@ pub struct App {
     view: Vec<View>,
     running: bool,
     pub query: String,
+    /// Selected index within query results.
+    pub query_cursor: usize,
     pub job_queue: JobQueue,
     pub env_stats: Option<EnvStats>,
     pub db_stats: Option<DbStats>,
@@ -129,6 +131,7 @@ impl App {
             view: vec![View::Main],
             running: true,
             query: String::new(),
+            query_cursor: 0,
             job_queue,
             env_stats: None,
             db_stats: None,
@@ -174,10 +177,20 @@ impl App {
                     self.job_queue.request_db_stats(name.clone())?;
                 }
             }
-            Action::EnterQuery => self.view.push(View::Query),
+            Action::EnterQuery => {
+                self.view.push(View::Query);
+                self.query.clear();
+                self.entries.clear();
+                self.query_cursor = 0;
+            }
             Action::ExitView => {
                 if self.view.len() > 1 {
                     self.view.pop();
+                    if self.current_view() == View::Main {
+                        if let Some(name) = self.db_names.get(self.selected) {
+                            self.entries = list_entries(&self.env, name, 100)?;
+                        }
+                    }
                 } else {
                     // Don't exit from the main view, just quit the app
                     self.running = false;
@@ -189,6 +202,21 @@ impl App {
                     self.help_query.clear();
                 }
             }
+        }
+        Ok(())
+    }
+
+    /// Update the query results after the query string has changed.
+    pub fn update_query_results(&mut self) -> Result<()> {
+        if self.db_names.is_empty() {
+            self.entries.clear();
+            return Ok(());
+        }
+        let db_name = &self.db_names[self.selected];
+        let mode = crate::db::query::parse_query(&self.query)?;
+        self.entries = crate::db::query::scan(&self.env, db_name, mode, 100)?;
+        if self.query_cursor >= self.entries.len() {
+            self.query_cursor = self.entries.len().saturating_sub(1);
         }
         Ok(())
     }
@@ -256,6 +284,28 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                     View::Query => {
                         if key.code == KeyCode::Esc || key.code == app.config.keybindings.quit {
                             Some(Action::ExitView)
+                        } else if key.code == app.config.keybindings.down {
+                            if !app.entries.is_empty() {
+                                app.query_cursor = (app.query_cursor + 1) % app.entries.len();
+                            }
+                            None
+                        } else if key.code == app.config.keybindings.up {
+                            if !app.entries.is_empty() {
+                                if app.query_cursor == 0 {
+                                    app.query_cursor = app.entries.len() - 1;
+                                } else {
+                                    app.query_cursor -= 1;
+                                }
+                            }
+                            None
+                        } else if key.code == KeyCode::Backspace {
+                            app.query.pop();
+                            app.update_query_results()?;
+                            None
+                        } else if let KeyCode::Char(c) = key.code {
+                            app.query.push(c);
+                            app.update_query_results()?;
+                            None
                         } else {
                             None
                         }
