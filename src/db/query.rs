@@ -6,6 +6,7 @@ use heed::{
 use jsonpath_lib as jsonpath;
 use regex::Regex;
 use serde_json::Value;
+use crate::plugins;
 use std::str;
 
 /// Attempt to decode raw bytes into a `serde_json::Value`.
@@ -17,6 +18,9 @@ pub fn decode_value(bytes: &[u8]) -> Result<Value> {
         return Ok(v);
     }
     if let Ok(v) = rmp_serde::from_slice::<Value>(bytes) {
+        return Ok(v);
+    }
+    if let Some(v) = plugins::decode_with_plugins(bytes) {
         return Ok(v);
     }
     Err(anyhow!("unable to decode value"))
