@@ -29,6 +29,35 @@ pub enum Mode<'a> {
     JsonPath(&'a str),
 }
 
+/// Parse a user provided query string into a [`Mode`].
+pub fn parse_query<'a>(input: &'a str) -> Result<Mode<'a>> {
+    let mut parts = input.split_whitespace();
+    let kind = parts
+        .next()
+        .ok_or_else(|| anyhow!("empty query"))?
+        .to_lowercase();
+    match kind.as_str() {
+        "prefix" => {
+            let pre = parts.next().ok_or_else(|| anyhow!("missing prefix"))?;
+            Ok(Mode::Prefix(pre))
+        }
+        "range" => {
+            let start = parts.next().ok_or_else(|| anyhow!("missing start"))?;
+            let end = parts.next().ok_or_else(|| anyhow!("missing end"))?;
+            Ok(Mode::Range(start, end))
+        }
+        "regex" => {
+            let pat = parts.next().ok_or_else(|| anyhow!("missing pattern"))?;
+            Ok(Mode::Regex(Regex::new(pat)?))
+        }
+        "jsonpath" => {
+            let path = parts.next().ok_or_else(|| anyhow!("missing path"))?;
+            Ok(Mode::JsonPath(path))
+        }
+        _ => Err(anyhow!("invalid query")),
+    }
+}
+
 pub fn scan(
     env: &Env,
     db_name: &str,
