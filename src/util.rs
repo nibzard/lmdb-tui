@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use crossterm::event::KeyCode;
 use std::time::Duration;
 
 /// Convert bytes to a lowercase hex string.
@@ -57,6 +58,27 @@ pub fn format_duration(dur: Duration) -> String {
     }
 }
 
+/// Convert a [`KeyCode`] to a readable label.
+pub fn key_label(code: &KeyCode) -> String {
+    match code {
+        KeyCode::Char(c) => c.to_string(),
+        KeyCode::Enter => "Enter".into(),
+        KeyCode::Tab => "Tab".into(),
+        KeyCode::Backspace => "Backspace".into(),
+        KeyCode::Delete => "Delete".into(),
+        KeyCode::Esc => "Esc".into(),
+        KeyCode::Up => "Up".into(),
+        KeyCode::Down => "Down".into(),
+        KeyCode::Left => "Left".into(),
+        KeyCode::Right => "Right".into(),
+        KeyCode::Home => "Home".into(),
+        KeyCode::End => "End".into(),
+        KeyCode::PageUp => "PageUp".into(),
+        KeyCode::PageDown => "PageDown".into(),
+        _ => format!("{:?}", code),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -86,5 +108,12 @@ mod tests {
     fn duration_formatting() {
         assert_eq!(format_duration(Duration::from_secs(45)), "45s");
         assert_eq!(format_duration(Duration::from_secs(125)), "2m 5s");
+    }
+
+    #[test]
+    fn key_labels() {
+        use crossterm::event::KeyCode;
+        assert_eq!(key_label(&KeyCode::Char('q')), "q");
+        assert_eq!(key_label(&KeyCode::Enter), "Enter");
     }
 }
