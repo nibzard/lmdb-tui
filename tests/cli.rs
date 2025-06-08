@@ -59,4 +59,3 @@ fn plain_lists_databases() -> anyhow::Result<()> {
     cmd.assert().success().stdout(contains("foo"));
     Ok(())
 }
-
