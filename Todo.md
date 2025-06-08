@@ -76,8 +76,8 @@ This roadmap derives from [`SPECS.md`](SPECS.md) and lists the concrete steps ne
 037. [ ] **mid** Add more comprehensive integration tests
 
 ### Test Suite Reorganization & Refactoring
-054. [ ] **hi** Reorganize test structure into unit/, integration/, performance/, ui/ directories
-055. [ ] **hi** Migrate shell scripts from experiments/ to structured Rust integration tests
+054. [x] **hi** Reorganize test structure into unit/, integration/, performance/, ui/ directories
+055. [x] **hi** Migrate shell scripts from experiments/ to structured Rust integration tests
 056. [ ] **mid** Expand UI testing coverage (currently only 2 UI tests for TUI-focused app)
 057. [ ] **mid** Add comprehensive TUI interaction testing (keyboard navigation, screen transitions)
 058. [ ] **mid** Implement property-based testing for query engine edge cases
