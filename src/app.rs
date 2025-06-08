@@ -124,6 +124,7 @@ impl App {
         }
     }
 
+
     pub fn reduce(&mut self, action: Action) -> Result<()> {
         match action {
             Action::Quit => self.running = false,
