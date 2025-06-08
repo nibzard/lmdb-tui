@@ -116,8 +116,9 @@ fn handle_help_pager() {
 
 fn init_logger(cli: &Cli) {
     let verbosity = cli.verbose + if std::env::var("DEBUG").is_ok() { 1 } else { 0 };
-    let level = if cli.quiet {
-        LevelFilter::Error
+    let level = if cli.quiet || (!cli.plain && !cli.json && cli.command.is_none()) {
+        // Disable logging for TUI mode to prevent terminal corruption
+        LevelFilter::Off
     } else {
         match verbosity {
             0 => LevelFilter::Warn,

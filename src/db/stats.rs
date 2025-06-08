@@ -40,9 +40,15 @@ pub fn env_stats(env: &Env) -> EnvStats {
 /// Gather statistics for a specific database by name.
 pub fn db_stats(env: &Env, db_name: &str) -> Result<DbStats> {
     let rtxn = env.read_txn()?;
-    let db: Database<Str, Bytes> = env
-        .open_database(&rtxn, Some(db_name))?
-        .ok_or_else(|| anyhow!("database not found"))?;
+    let db: Database<Str, Bytes> = if db_name == "(unnamed)" {
+        // Open the unnamed database
+        env.open_database(&rtxn, None)?
+            .ok_or_else(|| anyhow!("unnamed database not found"))?
+    } else {
+        // Open a named database
+        env.open_database(&rtxn, Some(db_name))?
+            .ok_or_else(|| anyhow!("database not found"))?
+    };
     let stat = db.stat(&rtxn)?;
     rtxn.commit()?;
     Ok(DbStats {
