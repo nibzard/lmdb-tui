@@ -10,6 +10,10 @@ name = "lmdb_tui"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "lmdb-grpc-server"
+path = "src/bin/grpc_server.rs"
+
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
 crossterm = "0.27"
@@ -30,6 +34,8 @@ base64 = "0.21"
 rmp-serde = "1"
 csv = "1"
 indicatif = "0.17"
+tonic = { version = "0.10", features = ["transport"] }
+prost = "0.12"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
@@ -45,6 +51,9 @@ criterion = "0.5"
 [[bin]]
 name = "lmdb-tui-agent"
 path = "src/bin/agent.rs"
+
+[build-dependencies]
+tonic-build = "0.10"
 
 [package.metadata]
 authors = ["Nikola Balic @nibzard"]

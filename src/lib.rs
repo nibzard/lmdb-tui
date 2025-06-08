@@ -6,6 +6,7 @@ pub mod constants;
 pub mod db;
 pub mod errors;
 pub mod export;
+pub mod grpc;
 pub mod jobs;
 pub mod remote;
 pub mod ui;

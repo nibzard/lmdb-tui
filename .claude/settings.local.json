@@ -12,7 +12,8 @@
       "Bash(git push:*)",
       "Bash(cargo test:*)",
       "Bash(cargo run:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
