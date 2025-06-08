@@ -7,6 +7,7 @@ pub mod db;
 pub mod errors;
 pub mod export;
 pub mod jobs;
+pub mod remote;
 pub mod ui;
 pub mod util;
 

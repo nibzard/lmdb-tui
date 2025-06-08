@@ -4,7 +4,7 @@ use std::process::{Command, Stdio};
 
 use clap::{command, CommandFactory, Parser, Subcommand};
 use heed::Error as HeedError;
-use lmdb_tui::{app, export};
+use lmdb_tui::{app, export, remote};
 use log::LevelFilter;
 
 /// Simple LMDB TUI explorer
@@ -41,6 +41,10 @@ struct Cli {
     #[arg(long, action = clap::ArgAction::Count)]
     verbose: u8,
 
+    /// Connect to remote agent at HOST
+    #[arg(long)]
+    remote: Option<String>,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -64,7 +68,9 @@ fn main() {
         Some(Commands::Import(args)) => export::import(args),
         None => {
             let path = cli.path.expect("path required");
-            if cli.plain || cli.json {
+            if let Some(host) = cli.remote.as_deref() {
+                run_remote_plain(&path, cli.read_only, cli.json, host)
+            } else if cli.plain || cli.json {
                 app::run_plain(&path, cli.read_only, cli.json)
             } else {
                 app::run(&path, cli.read_only)
@@ -158,4 +164,40 @@ fn exit_code(e: &anyhow::Error) -> i32 {
         }
     }
     1
+}
+
+fn run_remote_plain(
+    path: &std::path::Path,
+    read_only: bool,
+    json: bool,
+    host: &str,
+) -> anyhow::Result<()> {
+    let mut client = remote::RemoteClient::connect(host)?;
+    let mut names = client.list_databases(path, read_only)?;
+    names.sort();
+    let output = if json {
+        serde_json::to_string_pretty(&names)? + "\n"
+    } else {
+        names.join("\n") + "\n"
+    };
+    output_with_pager(&output)?;
+    Ok(())
+}
+
+fn output_with_pager(text: &str) -> std::io::Result<()> {
+    if let Ok(pager) = std::env::var("PAGER") {
+        if !pager.is_empty() {
+            let mut child = std::process::Command::new(pager)
+                .stdin(std::process::Stdio::piped())
+                .spawn()?;
+            if let Some(stdin) = &mut child.stdin {
+                use std::io::Write;
+                stdin.write_all(text.as_bytes())?;
+            }
+            child.wait()?;
+            return Ok(());
+        }
+    }
+    print!("{}", text);
+    Ok(())
 }
