@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use crate::constants::MAX_DATABASES;
 use anyhow::{anyhow, Result};
 use heed::EnvFlags;
 use heed::{
@@ -7,15 +8,9 @@ use heed::{
     Database, Env, EnvOpenOptions,
 };
 
-/// Maximum number of databases allowed in an environment.
-pub const MAX_DBS: u32 = 128;
-
-/// Default number of entries to retrieve when listing database contents.
-pub const DEFAULT_ENTRY_LIMIT: usize = 100;
-
 pub fn open_env(path: &Path, read_only: bool) -> Result<Env> {
     let mut builder = EnvOpenOptions::new();
-    builder.max_dbs(MAX_DBS);
+    builder.max_dbs(MAX_DATABASES);
     if read_only {
         unsafe {
             builder.flags(EnvFlags::READ_ONLY);

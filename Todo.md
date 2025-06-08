@@ -76,8 +76,8 @@ This roadmap derives from [`SPECS.md`](SPECS.md) and lists the concrete steps ne
 037. [ ] **mid** Add more comprehensive integration tests
 
 ### Test Suite Reorganization & Refactoring
-054. [ ] **hi** Reorganize test structure into unit/, integration/, performance/, ui/ directories
-055. [ ] **hi** Migrate shell scripts from experiments/ to structured Rust integration tests
+054. [x] **hi** Reorganize test structure into unit/, integration/, performance/, ui/ directories
+055. [x] **hi** Migrate shell scripts from experiments/ to structured Rust integration tests
 056. [ ] **mid** Expand UI testing coverage (currently only 2 UI tests for TUI-focused app)
 057. [ ] **mid** Add comprehensive TUI interaction testing (keyboard navigation, screen transitions)
 058. [ ] **mid** Implement property-based testing for query engine edge cases
@@ -90,6 +90,27 @@ This roadmap derives from [`SPECS.md`](SPECS.md) and lists the concrete steps ne
 065. [ ] **lo** Establish performance baselines and regression testing
 066. [ ] **lo** Add memory constraint and large dataset testing
 
+
+## Team 6: UX Modernization
+**Owner**: [Unassigned]
+**Module Focus**: Research, telemetry, advanced UI patterns
+**Dependencies**: Core features
+
+### Tasks
+067. [ ] **hi** Conduct Jobs-To-Be-Done interviews to capture desired outcomes
+068. [ ] **mid** Map the full user journey and identify friction points
+069. [ ] **mid** Instrument telemetry for help usage, hotkey frequency and errors
+070. [ ] **hi** Implement context-sensitive help overlays with dynamic shortcuts
+071. [ ] **mid** Add progressive disclosure for advanced options
+072. [ ] **hi** Create a universal command palette with fuzzy search
+073. [ ] **mid** Show real-time progress indicators for long operations
+074. [ ] **mid** Expand theming with light/dark/high-contrast presets and save layout
+075. [ ] **mid** Ensure screen-reader support and tab-order navigation
+076. [ ] **mid** Gracefully handle terminal resizing and colour fallbacks
+077. [ ] **mid** Integrate fuzzy finder for large key sets
+078. [ ] **mid** Provide syntax-highlighted value previews
+079. [ ] **mid** Prototype new flows with user testing sessions
+080. [ ] **mid** Add opt-in telemetry for usage patterns and error reports
 ---
 
 ## Future Enhancements (Backlog)
@@ -99,7 +120,7 @@ This roadmap derives from [`SPECS.md`](SPECS.md) and lists the concrete steps ne
 ### Advanced Features
 030. [ ] **lo** Remote mode via agent process
 031. [ ] **lo** gRPC server for automation
-032. [ ] **lo** WebAssembly build
+032. [x] **lo** WebAssembly build
 033. [ ] **lo** Plugin API for custom decoders
 
 ---

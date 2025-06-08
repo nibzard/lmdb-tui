@@ -30,3 +30,21 @@ fn reducer_switches_databases() -> anyhow::Result<()> {
     assert_eq!(app.entries[0].0, "k2");
     Ok(())
 }
+
+#[test]
+fn reducer_toggles_help_and_clears_query() -> anyhow::Result<()> {
+    let dir = tempdir()?;
+    let env = open_env(dir.path(), false)?;
+    let names = list_databases(&env)?;
+    let config = Config::default();
+    let mut app = App::new(env, names, config)?;
+
+    assert!(!app.show_help);
+    app.reduce(Action::ToggleHelp)?;
+    assert!(app.show_help);
+    app.help_query.push('a');
+    app.reduce(Action::ToggleHelp)?;
+    assert!(!app.show_help);
+    assert!(app.help_query.is_empty());
+    Ok(())
+}

@@ -1,4 +1,4 @@
-use std::{sync::Arc, thread};
+use std::{sync::Arc, thread::{self, JoinHandle}};
 
 use anyhow::Result;
 use tokio::{sync::mpsc, task};
@@ -22,7 +22,7 @@ pub enum JobResult {
 pub struct JobQueue {
     sender: Option<mpsc::UnboundedSender<Job>>,
     pub receiver: mpsc::UnboundedReceiver<JobResult>,
-    handle: Option<thread::JoinHandle<()>>,
+    handle: Option<JoinHandle<()>>,
 }
 
 impl JobQueue {
@@ -99,8 +99,8 @@ impl JobQueue {
 
 impl Drop for JobQueue {
     fn drop(&mut self) {
-        // Drop the sender first to close the request channel
-        let _ = self.sender.take();
+        // Close the channel by dropping the sender before joining the thread
+        self.sender.take();
         if let Some(handle) = self.handle.take() {
             let _ = handle.join();
         }
