@@ -129,17 +129,31 @@ fn exit_code(e: &anyhow::Error) -> i32 {
         if let Some(io) = cause.downcast_ref::<std::io::Error>() {
             use std::io::ErrorKind::*;
             return match io.kind() {
-                NotFound => 1,
+                NotFound => 2,
                 PermissionDenied => 3,
-                _ => 1,
+                _ => {
+                    // Handle ENXIO (error 6) on macOS as "not found"
+                    if let Some(6) = io.raw_os_error() {
+                        2
+                    } else {
+                        1
+                    }
+                }
             };
         }
         if let Some(HeedError::Io(io)) = cause.downcast_ref::<HeedError>() {
             use std::io::ErrorKind::*;
             return match io.kind() {
-                NotFound => 1,
+                NotFound => 2,
                 PermissionDenied => 3,
-                _ => 1,
+                _ => {
+                    // Handle ENXIO (error 6) on macOS as "not found"
+                    if let Some(6) = io.raw_os_error() {
+                        2
+                    } else {
+                        1
+                    }
+                }
             };
         }
     }
