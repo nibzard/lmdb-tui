@@ -274,8 +274,8 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                             None
                         }
                     }
-                    View::Query => match key.code {
-                        k if k == KeyCode::Esc || k == app.config.keybindings.quit => {
+                    View::Query => {
+                        if key.code == KeyCode::Esc || key.code == app.config.keybindings.quit {
                             Some(Action::ExitView)
                         } else if key.code == app.config.keybindings.down {
                             if !app.entries.is_empty() {

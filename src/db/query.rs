@@ -45,6 +45,9 @@ pub enum Mode<'a> {
 /// entire input as the prefix.
 pub fn parse_query(input: &str) -> Result<Mode<'_>> {
     let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Err(anyhow!("empty query"));
+    }
     if let Some(rest) = trimmed.strip_prefix("prefix ") {
         return Ok(Mode::Prefix(rest));
     }
