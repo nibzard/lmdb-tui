@@ -6,7 +6,10 @@
       "Bash(git checkout:*)",
       "Bash(gh pr checkout:*)",
       "Bash(git merge:*)",
-      "Bash(cargo test)"
+      "Bash(cargo test)",
+      "Bash(cargo fmt:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }
