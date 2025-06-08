@@ -11,6 +11,7 @@ pub mod jobs;
 pub mod remote;
 pub mod ui;
 pub mod util;
+pub mod plugins;
 
 #[cfg(target_arch = "wasm32")]
 pub mod wasm;
