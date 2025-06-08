@@ -1,4 +1,4 @@
-use std::thread::{self, JoinHandle};
+use std::{sync::Arc, thread::{self, JoinHandle}};
 
 use anyhow::Result;
 use tokio::{sync::mpsc, task};
@@ -29,6 +29,7 @@ impl JobQueue {
     pub fn new(env: Env) -> Self {
         let (tx, mut rx) = mpsc::unbounded_channel();
         let (res_tx, res_rx) = mpsc::unbounded_channel();
+        let env = Arc::new(env);
         let env_thread = env.clone();
         let handle = thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
