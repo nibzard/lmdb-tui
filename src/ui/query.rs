@@ -6,13 +6,14 @@ use ratatui::{
 
 use crate::config::Config;
 
+/// Render the query view with input and result list.
 pub fn render(
     f: &mut Frame,
     area: Rect,
     query: &str,
     entries: &[(String, Vec<u8>)],
     selected: usize,
-    cfg: &Config,
+    config: &Config,
 ) {
     let block = Block::default().borders(Borders::ALL).title("Query");
     f.render_widget(block.clone(), area);
@@ -27,12 +28,15 @@ pub fn render(
         .iter()
         .enumerate()
         .map(|(i, (k, v))| {
-            let text = format!("{}: {}", k, String::from_utf8_lossy(v));
-            if i == selected {
-                ListItem::new(Span::styled(text, cfg.theme.selected_style()))
+            let content = if i == selected {
+                Span::styled(
+                    format!("{}: {}", k, String::from_utf8_lossy(v)),
+                    config.theme.selected_style(),
+                )
             } else {
-                ListItem::new(Span::raw(text))
-            }
+                Span::raw(format!("{}: {}", k, String::from_utf8_lossy(v)))
+            };
+            ListItem::new(content)
         })
         .collect();
     let list = List::new(items);

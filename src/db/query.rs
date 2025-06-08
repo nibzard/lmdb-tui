@@ -6,6 +6,7 @@ use heed::{
 use jsonpath_lib as jsonpath;
 use regex::Regex;
 use serde_json::Value;
+use crate::plugins;
 use std::str;
 
 /// Attempt to decode raw bytes into a `serde_json::Value`.
@@ -19,6 +20,9 @@ pub fn decode_value(bytes: &[u8]) -> Result<Value> {
     if let Ok(v) = rmp_serde::from_slice::<Value>(bytes) {
         return Ok(v);
     }
+    if let Some(v) = plugins::decode_with_plugins(bytes) {
+        return Ok(v);
+    }
     Err(anyhow!("unable to decode value"))
 }
 
@@ -29,33 +33,39 @@ pub enum Mode<'a> {
     JsonPath(&'a str),
 }
 
-/// Parse a user provided query string into a [`Mode`].
-pub fn parse_query<'a>(input: &'a str) -> Result<Mode<'a>> {
-    let mut parts = input.split_whitespace();
-    let kind = parts
-        .next()
-        .ok_or_else(|| anyhow!("empty query"))?
-        .to_lowercase();
-    match kind.as_str() {
-        "prefix" => {
-            let pre = parts.next().ok_or_else(|| anyhow!("missing prefix"))?;
-            Ok(Mode::Prefix(pre))
-        }
-        "range" => {
-            let start = parts.next().ok_or_else(|| anyhow!("missing start"))?;
-            let end = parts.next().ok_or_else(|| anyhow!("missing end"))?;
-            Ok(Mode::Range(start, end))
-        }
-        "regex" => {
-            let pat = parts.next().ok_or_else(|| anyhow!("missing pattern"))?;
-            Ok(Mode::Regex(Regex::new(pat)?))
-        }
-        "jsonpath" => {
-            let path = parts.next().ok_or_else(|| anyhow!("missing path"))?;
-            Ok(Mode::JsonPath(path))
-        }
-        _ => Err(anyhow!("invalid query")),
+/// Parse a user supplied query string into a [`Mode`].
+///
+/// Supported formats:
+/// - `"prefix <value>"` performs a prefix match on keys
+/// - `"range <start> <end>"` or `"range <start>..<end>"`
+/// - `"regex <expr>"` interprets `<expr>` as a regular expression
+/// - `"jsonpath <expr>"` filters decoded JSON values with a JSONPath
+///
+/// Any string without a recognised prefix defaults to `Mode::Prefix` using the
+/// entire input as the prefix.
+pub fn parse_query(input: &str) -> Result<Mode<'_>> {
+    let trimmed = input.trim();
+    if let Some(rest) = trimmed.strip_prefix("prefix ") {
+        return Ok(Mode::Prefix(rest));
     }
+    if let Some(rest) = trimmed.strip_prefix("range ") {
+        if let Some((start, end)) = rest.split_once("..") {
+            return Ok(Mode::Range(start.trim(), end.trim()));
+        }
+        let mut parts = rest.split_whitespace();
+        if let (Some(start), Some(end)) = (parts.next(), parts.next()) {
+            return Ok(Mode::Range(start, end));
+        }
+        return Err(anyhow!("invalid range query"));
+    }
+    if let Some(rest) = trimmed.strip_prefix("regex ") {
+        let re = Regex::new(rest)?;
+        return Ok(Mode::Regex(re));
+    }
+    if let Some(rest) = trimmed.strip_prefix("jsonpath ") {
+        return Ok(Mode::JsonPath(rest));
+    }
+    Ok(Mode::Prefix(trimmed))
 }
 
 pub fn scan(

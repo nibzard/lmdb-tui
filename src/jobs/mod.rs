@@ -1,4 +1,4 @@
-use std::thread;
+use std::{sync::Arc, thread::{self, JoinHandle}};
 
 use anyhow::Result;
 use tokio::{sync::mpsc, task};
@@ -20,16 +20,18 @@ pub enum JobResult {
 
 /// Simple job queue backed by a Tokio runtime running in a thread.
 pub struct JobQueue {
-    sender: mpsc::UnboundedSender<Job>,
+    sender: Option<mpsc::UnboundedSender<Job>>,
     pub receiver: mpsc::UnboundedReceiver<JobResult>,
+    handle: Option<JoinHandle<()>>,
 }
 
 impl JobQueue {
     pub fn new(env: Env) -> Self {
         let (tx, mut rx) = mpsc::unbounded_channel();
         let (res_tx, res_rx) = mpsc::unbounded_channel();
+        let env = Arc::new(env);
         let env_thread = env.clone();
-        thread::spawn(move || {
+        let handle = thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
@@ -51,12 +53,18 @@ impl JobQueue {
                         Job::Db(name) => {
                             let e = env_thread.clone();
                             let name_clone = name.clone();
-                            match task::spawn_blocking(move || stats::db_stats(&e, &name_clone)).await {
+                            match task::spawn_blocking(move || stats::db_stats(&e, &name_clone))
+                                .await
+                            {
                                 Ok(Ok(stats)) => {
                                     let _ = res_tx.send(JobResult::Db(name, stats));
                                 }
                                 Ok(Err(e)) => {
-                                    log::warn!("Failed to calculate stats for database '{}': {}", name, e);
+                                    log::warn!(
+                                        "Failed to calculate stats for database '{}': {}",
+                                        name,
+                                        e
+                                    );
                                 }
                                 Err(e) => {
                                     log::error!("Task join error for database '{}': {}", name, e);
@@ -68,16 +76,33 @@ impl JobQueue {
             });
         });
         Self {
-            sender: tx,
+            sender: Some(tx),
             receiver: res_rx,
+            handle: Some(handle),
         }
     }
 
     pub fn request_env_stats(&self) -> Result<()> {
-        Ok(self.sender.send(Job::Env)?)
+        if let Some(sender) = &self.sender {
+            sender.send(Job::Env)?;
+        }
+        Ok(())
     }
 
     pub fn request_db_stats(&self, db: String) -> Result<()> {
-        Ok(self.sender.send(Job::Db(db))?)
+        if let Some(sender) = &self.sender {
+            sender.send(Job::Db(db))?;
+        }
+        Ok(())
+    }
+}
+
+impl Drop for JobQueue {
+    fn drop(&mut self) {
+        // Close the channel by dropping the sender before joining the thread
+        self.sender.take();
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
     }
 }

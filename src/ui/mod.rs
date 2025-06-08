@@ -28,8 +28,8 @@ pub fn render(f: &mut Frame, app: &App) {
             f,
             chunks[0],
             &app.query,
-            &app.query_results,
-            app.query_selected,
+            &app.entries,
+            app.query_cursor,
             &app.config,
         ),
     }

@@ -15,42 +15,13 @@ use crate::db::stats::{DbStats, EnvStats};
 use crate::jobs::{JobQueue, JobResult};
 
 use crate::config::Config;
+use crate::constants::DEFAULT_ENTRY_LIMIT;
 use crate::db::env::{list_databases, list_entries, open_env};
 use crate::ui::{
     self,
     help::{self, DEFAULT_ENTRIES},
 };
 use ratatui::layout::{Constraint, Direction, Layout};
-
-fn centered_rect(
-    percent_x: u16,
-    percent_y: u16,
-    r: ratatui::layout::Rect,
-) -> ratatui::layout::Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Percentage((100 - percent_y) / 2),
-                Constraint::Percentage(percent_y),
-                Constraint::Percentage((100 - percent_y) / 2),
-            ]
-            .as_ref(),
-        )
-        .split(r);
-    let vertical = popup_layout[1];
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(
-            [
-                Constraint::Percentage((100 - percent_x) / 2),
-                Constraint::Percentage(percent_x),
-                Constraint::Percentage((100 - percent_x) / 2),
-            ]
-            .as_ref(),
-        )
-        .split(vertical)[1]
-}
 
 /// Guard that enables raw mode on creation and disables it on drop.
 pub struct RawModeGuard;
@@ -97,8 +68,8 @@ pub struct App {
     view: Vec<View>,
     running: bool,
     pub query: String,
-    pub query_results: Vec<(String, Vec<u8>)>,
-    pub query_selected: usize,
+    /// Selected index within query results.
+    pub query_cursor: usize,
     pub job_queue: JobQueue,
     pub env_stats: Option<EnvStats>,
     pub db_stats: Option<DbStats>,
@@ -111,7 +82,7 @@ impl App {
     pub fn new(env: Env, mut db_names: Vec<String>, config: Config) -> Result<Self> {
         db_names.sort();
         let entries = if let Some(name) = db_names.first() {
-            list_entries(&env, name, 100)?
+            list_entries(&env, name, DEFAULT_ENTRY_LIMIT)?
         } else {
             Vec::new()
         };
@@ -130,8 +101,7 @@ impl App {
             view: vec![View::Main],
             running: true,
             query: String::new(),
-            query_results: Vec::new(),
-            query_selected: 0,
+            query_cursor: 0,
             job_queue,
             env_stats: None,
             db_stats: None,
@@ -154,17 +124,6 @@ impl App {
         }
     }
 
-    pub fn run_query(&mut self) -> Result<()> {
-        if self.db_names.is_empty() {
-            self.query_results.clear();
-            return Ok(());
-        }
-        let db = &self.db_names[self.selected];
-        let mode = crate::db::query::parse_query(&self.query)?;
-        self.query_results = crate::db::query::scan(&self.env, db, mode, 100)?;
-        self.query_selected = 0;
-        Ok(())
-    }
 
     pub fn reduce(&mut self, action: Action) -> Result<()> {
         match action {
@@ -173,7 +132,7 @@ impl App {
                 if !self.db_names.is_empty() {
                     self.selected = (self.selected + 1) % self.db_names.len();
                     let name = &self.db_names[self.selected];
-                    self.entries = list_entries(&self.env, name, 100)?;
+                    self.entries = list_entries(&self.env, name, DEFAULT_ENTRY_LIMIT)?;
                     self.job_queue.request_db_stats(name.clone())?;
                 }
             }
@@ -185,23 +144,22 @@ impl App {
                         self.selected -= 1;
                     }
                     let name = &self.db_names[self.selected];
-                    self.entries = list_entries(&self.env, name, 100)?;
+                    self.entries = list_entries(&self.env, name, DEFAULT_ENTRY_LIMIT)?;
                     self.job_queue.request_db_stats(name.clone())?;
                 }
             }
             Action::EnterQuery => {
                 self.view.push(View::Query);
                 self.query.clear();
-                self.query_results.clear();
-                self.query_selected = 0;
+                self.entries.clear();
+                self.query_cursor = 0;
             }
             Action::ExitView => {
                 if self.view.len() > 1 {
-                    if let Some(leaving) = self.view.pop() {
-                        if leaving == View::Query {
-                            self.query.clear();
-                            self.query_results.clear();
-                            self.query_selected = 0;
+                    self.view.pop();
+                    if self.current_view() == View::Main {
+                        if let Some(name) = self.db_names.get(self.selected) {
+                            self.entries = list_entries(&self.env, name, 100)?;
                         }
                     }
                 } else {
@@ -215,6 +173,21 @@ impl App {
                     self.help_query.clear();
                 }
             }
+        }
+        Ok(())
+    }
+
+    /// Update the query results after the query string has changed.
+    pub fn update_query_results(&mut self) -> Result<()> {
+        if self.db_names.is_empty() {
+            self.entries.clear();
+            return Ok(());
+        }
+        let db_name = &self.db_names[self.selected];
+        let mode = crate::db::query::parse_query(&self.query)?;
+        self.entries = crate::db::query::scan(&self.env, db_name, mode, 100)?;
+        if self.query_cursor >= self.entries.len() {
+            self.query_cursor = self.entries.len().saturating_sub(1);
         }
         Ok(())
     }
@@ -237,7 +210,29 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
         terminal.draw(|f| {
             ui::render(f, &app);
             if app.show_help {
-                let area = centered_rect(60, 60, f.size());
+                let popup_layout = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints(
+                        [
+                            Constraint::Percentage((100 - 60) / 2),
+                            Constraint::Percentage(60),
+                            Constraint::Percentage((100 - 60) / 2),
+                        ]
+                        .as_ref(),
+                    )
+                    .split(f.size());
+                let vertical = popup_layout[1];
+                let area = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints(
+                        [
+                            Constraint::Percentage((100 - 60) / 2),
+                            Constraint::Percentage(60),
+                            Constraint::Percentage((100 - 60) / 2),
+                        ]
+                        .as_ref(),
+                    )
+                    .split(vertical)[1];
                 help::render(f, area, &app.help_query, DEFAULT_ENTRIES);
             }
         })?;
@@ -282,40 +277,32 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                     View::Query => match key.code {
                         k if k == KeyCode::Esc || k == app.config.keybindings.quit => {
                             Some(Action::ExitView)
-                        }
-                        KeyCode::Backspace => {
-                            app.query.pop();
-                            None
-                        }
-                        KeyCode::Char(c) => {
-                            app.query.push(c);
-                            None
-                        }
-                        KeyCode::Enter => {
-                            if let Err(e) = app.run_query() {
-                                log::warn!("query failed: {}", e);
+                        } else if key.code == app.config.keybindings.down {
+                            if !app.entries.is_empty() {
+                                app.query_cursor = (app.query_cursor + 1) % app.entries.len();
                             }
                             None
-                        }
-                        k if k == app.config.keybindings.down => {
-                            if !app.query_results.is_empty() {
-                                app.query_selected =
-                                    (app.query_selected + 1) % app.query_results.len();
-                            }
-                            None
-                        }
-                        k if k == app.config.keybindings.up => {
-                            if !app.query_results.is_empty() {
-                                if app.query_selected == 0 {
-                                    app.query_selected = app.query_results.len() - 1;
+                        } else if key.code == app.config.keybindings.up {
+                            if !app.entries.is_empty() {
+                                if app.query_cursor == 0 {
+                                    app.query_cursor = app.entries.len() - 1;
                                 } else {
-                                    app.query_selected -= 1;
+                                    app.query_cursor -= 1;
                                 }
                             }
                             None
+                        } else if key.code == KeyCode::Backspace {
+                            app.query.pop();
+                            app.update_query_results()?;
+                            None
+                        } else if let KeyCode::Char(c) = key.code {
+                            app.query.push(c);
+                            app.update_query_results()?;
+                            None
+                        } else {
+                            None
                         }
-                        _ => None,
-                    },
+                    }
                 };
                 if let Some(act) = action {
                     app.reduce(act)?;
@@ -345,7 +332,7 @@ fn output_with_pager(text: &str) -> io::Result<()> {
             let mut child = std::process::Command::new(pager)
                 .stdin(std::process::Stdio::piped())
                 .spawn()?;
-            if let Some(stdin) = &mut child.stdin {
+            if let Some(mut stdin) = child.stdin.take() {
                 use std::io::Write;
                 stdin.write_all(text.as_bytes())?;
             }

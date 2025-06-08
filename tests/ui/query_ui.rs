@@ -1,4 +1,5 @@
-use lmdb_tui::{config::Config, ui::query};
+use lmdb_tui::config::Config;
+use lmdb_tui::ui::query;
 use ratatui::{backend::TestBackend, Terminal};
 
 #[test]
