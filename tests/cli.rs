@@ -30,7 +30,7 @@ fn missing_env_returns_code_2() {
 #[test]
 fn no_args_shows_help() {
     let mut cmd = Command::cargo_bin("lmdb-tui").unwrap();
-    cmd.assert().code(2).stderr(contains("Usage:"));
+    cmd.assert().failure().code(2).stderr(contains("Usage:"));
 }
 
 #[test]

@@ -80,7 +80,8 @@ fn main() {
 
 fn handle_help_pager() {
     let args: Vec<String> = std::env::args().collect();
-    if args.iter().any(|a| a == "--help" || a == "-h")
+    if args.len() == 1
+        || args.iter().any(|a| a == "--help" || a == "-h")
         || args.iter().any(|a| a == "--version" || a == "-V")
     {
         let mut cmd = Cli::command();
@@ -128,7 +129,7 @@ fn exit_code(e: &anyhow::Error) -> i32 {
         if let Some(io) = cause.downcast_ref::<std::io::Error>() {
             use std::io::ErrorKind::*;
             return match io.kind() {
-                NotFound => 2,
+                NotFound => 1,
                 PermissionDenied => 3,
                 _ => 1,
             };
@@ -136,7 +137,7 @@ fn exit_code(e: &anyhow::Error) -> i32 {
         if let Some(HeedError::Io(io)) = cause.downcast_ref::<HeedError>() {
             use std::io::ErrorKind::*;
             return match io.kind() {
-                NotFound => 2,
+                NotFound => 1,
                 PermissionDenied => 3,
                 _ => 1,
             };

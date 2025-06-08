@@ -183,6 +183,16 @@ python scripts/generate_manifests.py
 
 The generated files are written to the `dist/` directory.
 
+### WebAssembly Build
+
+An experimental WebAssembly build can be produced with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/):
+
+```bash
+scripts/wasm_build.sh
+```
+
+This generates a `pkg/` directory with `lmdb_tui.js` and `lmdb_tui_bg.wasm` which can be served by a static web server.
+
 ## Troubleshooting
 
 ### macOS Issues
