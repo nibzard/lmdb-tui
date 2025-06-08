@@ -25,10 +25,7 @@ pub fn render(
         .enumerate()
         .map(|(i, name)| {
             let content = if i == selected {
-                Span::styled(
-                    name.clone(),
-                    config.theme.selected_style(),
-                )
+                Span::styled(name.clone(), config.theme.selected_style())
             } else {
                 Span::raw(name.clone())
             };
