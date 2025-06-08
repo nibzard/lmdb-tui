@@ -30,7 +30,7 @@ fn missing_env_returns_code_2() {
 #[test]
 fn no_args_shows_help() {
     let mut cmd = Command::cargo_bin("lmdb-tui").unwrap();
-    cmd.assert().failure().code(2).stderr(contains("Usage:"));
+    cmd.assert().success().stdout(contains("Usage:"));
 }
 
 #[test]
@@ -58,11 +58,4 @@ fn plain_lists_databases() -> anyhow::Result<()> {
     cmd.args(["--plain", dir.path().to_str().unwrap()]);
     cmd.assert().success().stdout(contains("foo"));
     Ok(())
-}
-
-#[test]
-fn missing_env_exits_with_code_2() {
-    let mut cmd = Command::cargo_bin("lmdb-tui").unwrap();
-    cmd.arg("/nonexistent");
-    cmd.assert().failure().code(2);
 }
