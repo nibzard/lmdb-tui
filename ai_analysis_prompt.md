@@ -2,12 +2,61 @@
 # TUI Testing Analysis Report
 
 ## Test Session Summary
-- **Total Snapshots**: 3
-- **Views Tested**: Main
-- **Terminal Sizes**: [(80, 24)]
+- **Total Snapshots**: 15
+- **Views Tested**: Main, Query
+- **Terminal Sizes**: [(120, 40), (40, 10), (80, 24), (200, 60)]
 
 ## State Transitions
-[]
+[
+  {
+    "from": "Main",
+    "to": "Query",
+    "test": "responsive_small",
+    "description": "query_view"
+  },
+  {
+    "from": "Query",
+    "to": "Main",
+    "test": "responsive_small",
+    "description": "help_view"
+  },
+  {
+    "from": "Main",
+    "to": "Query",
+    "test": "responsive_medium",
+    "description": "query_view"
+  },
+  {
+    "from": "Query",
+    "to": "Main",
+    "test": "responsive_medium",
+    "description": "help_view"
+  },
+  {
+    "from": "Main",
+    "to": "Query",
+    "test": "responsive_large",
+    "description": "query_view"
+  },
+  {
+    "from": "Query",
+    "to": "Main",
+    "test": "responsive_large",
+    "description": "help_view"
+  },
+  {
+    "from": "Main",
+    "to": "Query",
+    "test": "responsive_extra_large",
+    "description": "query_view"
+  },
+  {
+    "from": "Query",
+    "to": "Main",
+    "test": "responsive_extra_large",
+    "description": "help_view"
+  }
+]
 
 ## Potential Issues Found
 []
@@ -16,11 +65,32 @@
 {
   "render_complexity": {},
   "content_length_stats": {
-    "min": 1943,
-    "max": 1943,
-    "avg": 1943.0
+    "min": 409,
+    "max": 12059,
+    "avg": 4238.6
   },
-  "query_response_patterns": []
+  "query_response_patterns": [
+    {
+      "query": "user:1",
+      "result_count": 1,
+      "content_length": 409
+    },
+    {
+      "query": "user:1",
+      "result_count": 1,
+      "content_length": 1943
+    },
+    {
+      "query": "user:1",
+      "result_count": 1,
+      "content_length": 4839
+    },
+    {
+      "query": "user:1",
+      "result_count": 1,
+      "content_length": 12059
+    }
+  ]
 }
 
 ## Analysis Instructions for AI

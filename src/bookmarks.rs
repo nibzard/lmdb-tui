@@ -22,6 +22,10 @@ impl Bookmarks {
     pub fn contains(&self, db: &str, key: &str) -> bool {
         self.items.contains(&(db.to_string(), key.to_string()))
     }
+
+    pub fn entries(&self) -> impl Iterator<Item = &(String, String)> {
+        self.items.iter()
+    }
 }
 
 /// Maintains a bounded jump-to-key history.

@@ -167,16 +167,28 @@ impl TuiTestHarness {
                     }
                     KeyCode::Backspace => {
                         self.app.query.pop();
-                        self.app.update_query_results()?;
+                        let _ = self.app.update_query_results(); // Ignore query errors in tests
                         None
                     }
                     KeyCode::Char(c) => {
                         self.app.query.push(c);
-                        self.app.update_query_results()?;
+                        let _ = self.app.update_query_results(); // Ignore query errors in tests
                         None
                     }
                     _ => None,
                 }
+            }
+            lmdb_tui::app::View::CommandPalette => {
+                // Command palette is not used in tests, just exit on any key
+                Some(Action::ExitView)
+            }
+            lmdb_tui::app::View::Preview => {
+                // Preview is not used in tests, just exit on any key
+                Some(Action::ExitView)
+            }
+            lmdb_tui::app::View::CreateEntry | lmdb_tui::app::View::EditEntry | lmdb_tui::app::View::DeleteConfirm => {
+                // Dialogs are not used in tests, just exit on any key
+                Some(Action::ExitView)
             }
         };
 

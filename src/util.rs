@@ -43,6 +43,11 @@ pub fn format_size(bytes: u64) -> String {
     }
 }
 
+/// Format bytes length as human readable string.
+pub fn format_bytes(len: usize) -> String {
+    format_size(len as u64)
+}
+
 /// Format a duration as `h m s` string.
 pub fn format_duration(dur: Duration) -> String {
     let secs = dur.as_secs();
@@ -55,6 +60,36 @@ pub fn format_duration(dur: Duration) -> String {
         format!("{}m {}s", m, s)
     } else {
         format!("{}s", s)
+    }
+}
+
+/// Truncate text to fit within a given width, adding ellipsis if needed.
+pub fn truncate_with_ellipsis(text: &str, max_width: usize) -> String {
+    if text.len() <= max_width {
+        text.to_string()
+    } else if max_width <= 3 {
+        "...".to_string()
+    } else {
+        let truncated = &text[..max_width - 3];
+        format!("{}...", truncated)
+    }
+}
+
+/// Format a key-value pair with proper truncation for display.
+pub fn format_kv_entry(key: &str, value: &[u8], max_width: usize) -> String {
+    let value_str = String::from_utf8_lossy(value);
+    let entry = format!("{}: {}", key, value_str);
+    truncate_with_ellipsis(&entry, max_width)
+}
+
+/// Format pagination info (e.g., "1/5 results").
+pub fn format_pagination(current: usize, total: usize, result_count: usize) -> String {
+    if total == 0 {
+        "No results".to_string()
+    } else if result_count == 1 {
+        format!("{}/{} result", current + 1, total)
+    } else {
+        format!("{}/{} results", current + 1, total)
     }
 }
 
@@ -115,5 +150,20 @@ mod tests {
         use crossterm::event::KeyCode;
         assert_eq!(key_label(&KeyCode::Char('q')), "q");
         assert_eq!(key_label(&KeyCode::Enter), "Enter");
+    }
+
+    #[test]
+    fn text_truncation() {
+        assert_eq!(truncate_with_ellipsis("hello", 10), "hello");
+        assert_eq!(truncate_with_ellipsis("hello world", 8), "hello...");
+        assert_eq!(truncate_with_ellipsis("hi", 2), "hi");
+        assert_eq!(truncate_with_ellipsis("hello", 3), "...");
+    }
+
+    #[test]
+    fn pagination_formatting() {
+        assert_eq!(format_pagination(0, 5, 5), "1/5 results");
+        assert_eq!(format_pagination(2, 5, 1), "3/5 result");
+        assert_eq!(format_pagination(0, 0, 0), "No results");
     }
 }

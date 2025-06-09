@@ -26,6 +26,7 @@ pub fn decode_value(bytes: &[u8]) -> Result<Value> {
     Err(anyhow!("unable to decode value"))
 }
 
+#[derive(Clone)]
 pub enum Mode<'a> {
     Prefix(&'a str),
     Range(&'a str, &'a str),
@@ -78,9 +79,15 @@ pub fn scan(
     limit: usize,
 ) -> Result<Vec<(String, Vec<u8>)>> {
     let rtxn = env.read_txn()?;
-    let db: Database<Str, Bytes> = env
-        .open_database(&rtxn, Some(db_name))?
-        .ok_or_else(|| anyhow!("database not found"))?;
+    let db: Database<Str, Bytes> = if db_name == "(unnamed)" {
+        // Open the unnamed database
+        env.open_database(&rtxn, None)?
+            .ok_or_else(|| anyhow!("unnamed database not found"))?
+    } else {
+        // Open a named database
+        env.open_database(&rtxn, Some(db_name))?
+            .ok_or_else(|| anyhow!("database '{}' not found", db_name))?
+    };
     let iter = db.iter(&rtxn)?;
     let mut items = Vec::new();
     for result in iter {
