@@ -19,7 +19,7 @@ fn reducer_switches_databases() -> anyhow::Result<()> {
 
     let names = list_databases(&env)?;
     let config = Config::default();
-    let mut app = App::new(env, names, config)?;
+    let mut app = App::new(env, names, config, dir.path())?;
     assert_eq!(app.selected, 0);
     assert_eq!(app.entries.len(), 1);
     assert_eq!(app.entries[0].0, "k1");
@@ -37,7 +37,7 @@ fn reducer_toggles_help_and_clears_query() -> anyhow::Result<()> {
     let env = open_env(dir.path(), false)?;
     let names = list_databases(&env)?;
     let config = Config::default();
-    let mut app = App::new(env, names, config)?;
+    let mut app = App::new(env, names, config, dir.path())?;
 
     assert!(!app.show_help);
     app.reduce(Action::ToggleHelp)?;

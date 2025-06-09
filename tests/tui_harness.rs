@@ -64,7 +64,7 @@ impl TuiTestHarness {
         
         let db_names = list_databases(&env)?;
         let config = Config::default();
-        let app = App::new(env, db_names, config)?;
+        let app = App::new(env, db_names, config, temp_dir.path())?;
 
         let snapshots_dir = PathBuf::from("test_snapshots");
         fs::create_dir_all(&snapshots_dir)?;
@@ -86,7 +86,7 @@ impl TuiTestHarness {
         let env = open_env(db_path, true)?; // Read-only for existing databases
         let db_names = list_databases(&env)?;
         let config = Config::default();
-        let app = App::new(env, db_names, config)?;
+        let app = App::new(env, db_names, config, db_path)?;
 
         let snapshots_dir = PathBuf::from("test_snapshots");
         fs::create_dir_all(&snapshots_dir)?;

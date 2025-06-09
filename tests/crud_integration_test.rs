@@ -1,18 +1,52 @@
 use anyhow::Result;
 use lmdb_tui::app::{App, Action, View, DialogField};
 use lmdb_tui::config::Config;
-use lmdb_tui::db::env::open_env;
+use lmdb_tui::db::env::{open_env, list_databases};
+use lmdb_tui::commands;
+use lmdb_tui::db::txn::Txn;
+use lmdb_tui::db::undo::UndoStack;
 use tempfile::TempDir;
+
+#[allow(dead_code)]
+fn setup_test_app() -> Result<App> {
+    // Create a temporary database
+    let temp_dir = TempDir::new()?;
+    let env = open_env(temp_dir.path(), false)?;
+    
+    // Create a test database first
+    {
+        let mut txn = Txn::begin(&env)?;
+        let mut undo = UndoStack::new();
+        commands::put(&env, &mut txn, &mut undo, "data", "init", b"init")?;
+        txn.commit()?;
+    }
+    
+    let config = Config::default();
+    let db_names = list_databases(&env)?;
+    
+    // Create app with the databases found
+    App::new(env, db_names, config, temp_dir.path())
+}
 
 #[test]
 fn test_create_entry_dialog_flow() -> Result<()> {
     // Create a temporary database
     let temp_dir = TempDir::new()?;
     let env = open_env(temp_dir.path(), false)?;
-    let config = Config::default();
     
-    // Create app with a default database
-    let mut app = App::new(env, vec!["data".to_string()], config)?;
+    // Create a test database first
+    {
+        let mut txn = Txn::begin(&env)?;
+        let mut undo = UndoStack::new();
+        commands::put(&env, &mut txn, &mut undo, "data", "init", b"init")?;
+        txn.commit()?;
+    }
+    
+    let config = Config::default();
+    let db_names = list_databases(&env)?;
+    
+    // Create app with the databases found
+    let mut app = App::new(env, db_names, config, temp_dir.path())?;
     
     // Test opening create dialog
     app.reduce(Action::ExecuteCommand(lmdb_tui::app::CommandId::CreateEntry))?;
@@ -55,7 +89,7 @@ fn test_edit_entry_dialog_flow() -> Result<()> {
     let config = Config::default();
     
     // Create app and add an initial entry
-    let mut app = App::new(env, vec!["data".to_string()], config)?;
+    let mut app = App::new(env, vec!["data".to_string()], config, temp_dir.path())?;
     
     // First create an entry to edit
     app.dialog_key = "original_key".to_string();
@@ -100,7 +134,7 @@ fn test_delete_entry_dialog_flow() -> Result<()> {
     let config = Config::default();
     
     // Create app and add an initial entry
-    let mut app = App::new(env, vec!["data".to_string()], config)?;
+    let mut app = App::new(env, vec!["data".to_string()], config, temp_dir.path())?;
     
     // First create an entry to delete
     app.dialog_key = "delete_me".to_string();
@@ -139,7 +173,7 @@ fn test_dialog_cancellation() -> Result<()> {
     let env = open_env(temp_dir.path(), false)?;
     let config = Config::default();
     
-    let mut app = App::new(env, vec!["data".to_string()], config)?;
+    let mut app = App::new(env, vec!["data".to_string()], config, temp_dir.path())?;
     let initial_count = app.entries.len();
     
     // Test cancelling create dialog

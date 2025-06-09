@@ -1,5 +1,6 @@
 use std::io::{self};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::mpsc;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -8,6 +9,7 @@ use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use heed::Env;
+use notify::{Watcher, RecommendedWatcher, RecursiveMode};
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
@@ -86,6 +88,7 @@ pub enum Action {
     ConfirmCreate,
     ConfirmEdit,
     ConfirmDelete,
+    Refresh,
     Quit,
 }
 
@@ -106,6 +109,7 @@ pub enum CommandId {
     Abort,
     Undo,
     Redo,
+    Refresh,
     Quit,
 }
 
@@ -157,10 +161,13 @@ pub struct App {
     pub dialog_key_cursor: usize,
     pub dialog_value_cursor: usize,
     pub dialog_field: DialogField, // Which field is currently focused
+    pub db_path: PathBuf,
+    pub file_watcher: Option<RecommendedWatcher>,
+    pub file_events: mpsc::Receiver<notify::Result<notify::Event>>,
 }
 
 impl App {
-    pub fn new(env: Env, mut db_names: Vec<String>, config: Config) -> Result<Self> {
+    pub fn new(env: Env, mut db_names: Vec<String>, config: Config, db_path: &Path) -> Result<Self> {
         db_names.sort();
         let entries = if let Some(name) = db_names.first() {
             list_entries(&env, name, DEFAULT_ENTRY_LIMIT)?
@@ -172,6 +179,17 @@ impl App {
         job_queue.request_env_stats()?;
         if let Some(name) = db_names.first() {
             job_queue.request_db_stats(name.clone())?;
+        }
+
+        // Initialize file watcher
+        let (tx, rx) = mpsc::channel();
+        let mut watcher = notify::recommended_watcher(tx).ok();
+        
+        // Watch the database directory for changes
+        if let Some(ref mut w) = watcher {
+            if let Err(e) = w.watch(db_path, RecursiveMode::NonRecursive) {
+                log::warn!("Failed to setup file watching for {}: {}", db_path.display(), e);
+            }
         }
 
         Ok(Self {
@@ -208,6 +226,9 @@ impl App {
             dialog_key_cursor: 0,
             dialog_value_cursor: 0,
             dialog_field: DialogField::Key,
+            db_path: db_path.to_path_buf(),
+            file_watcher: watcher,
+            file_events: rx,
         })
     }
 
@@ -497,6 +518,9 @@ impl App {
                     CommandId::Redo => {
                         return self.reduce(Action::Redo);
                     }
+                    CommandId::Refresh => {
+                        return self.reduce(Action::Refresh);
+                    }
                     CommandId::Quit => {
                         return self.reduce(Action::Quit);
                     }
@@ -678,6 +702,26 @@ impl App {
                 // Close dialog
                 self.view.pop();
             }
+            Action::Refresh => {
+                // Refresh entries from database
+                if !self.db_names.is_empty() {
+                    let db_name = &self.db_names[self.selected];
+                    if let Ok(entries) = list_entries(&self.env, db_name, DEFAULT_ENTRY_LIMIT) {
+                        let _old_cursor = self.cursor;
+                        self.entries = entries;
+                        // Try to keep cursor in bounds
+                        if self.cursor >= self.entries.len() && !self.entries.is_empty() {
+                            self.cursor = self.entries.len() - 1;
+                        } else if self.entries.is_empty() {
+                            self.cursor = 0;
+                        }
+                        // Update query results if in query view
+                        if self.current_view() == View::Query {
+                            let _ = self.update_query_results();
+                        }
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -763,6 +807,13 @@ impl App {
                 description: "Redo last undone operation".into(),
                 keywords: vec!["redo".into(), "restore".into()],
                 keybinding: Some("Ctrl+y".into()),
+            },
+            Command {
+                id: CommandId::Refresh,
+                name: "Refresh".into(),
+                description: "Refresh database view".into(),
+                keywords: vec!["refresh".into(), "reload".into(), "update".into()],
+                keybinding: Some("F5".into()),
             },
             Command {
                 id: CommandId::ExportDatabase,
@@ -900,7 +951,7 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
     let config = Config::load()?;
     let env = open_env(path, read_only)?;
     let names = list_databases(&env)?;
-    let mut app = App::new(env, names, config)?;
+    let mut app = App::new(env, names, config, path)?;
 
     while app.running {
         app.process_background_jobs();
@@ -983,6 +1034,14 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                             Some(Action::OpenCommandPalette)
                         } else if key.code == KeyCode::Enter {
                             Some(Action::EnterPreview)
+                        } else if key.code == KeyCode::Char('e') {
+                            Some(Action::ExecuteCommand(CommandId::EditEntry))
+                        } else if key.code == KeyCode::Char('c') {
+                            Some(Action::ExecuteCommand(CommandId::CreateEntry))
+                        } else if key.code == KeyCode::Char('d') {
+                            Some(Action::ExecuteCommand(CommandId::DeleteEntry))
+                        } else if key.code == KeyCode::F(5) {
+                            Some(Action::Refresh)
                         } else {
                             None
                         }
@@ -1170,6 +1229,20 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                 };
                 if let Some(act) = action {
                     app.reduce(act)?;
+                }
+            }
+        }
+
+        // Check for file system events (non-blocking)
+        while let Ok(event_result) = app.file_events.try_recv() {
+            if let Ok(event) = event_result {
+                match event.kind {
+                    notify::EventKind::Create(_) | notify::EventKind::Modify(_) | notify::EventKind::Remove(_) => {
+                        // Database file changed, trigger refresh
+                        app.reduce(Action::Refresh)?;
+                        break; // Only process one refresh per iteration to avoid spam
+                    }
+                    _ => {} // Ignore other event types
                 }
             }
         }

@@ -49,6 +49,10 @@ pub const DEFAULT_ENTRIES: &[HelpEntry] = &[
         key: "?",
         action: "Toggle help",
     },
+    HelpEntry {
+        key: "F5",
+        action: "Refresh database view",
+    },
 ];
 
 /// Filter help entries by a query string (case-insensitive).
@@ -71,7 +75,7 @@ pub fn render(f: &mut Frame, area: Rect, query: &str, entries: &[HelpEntry]) {
     let block = Block::default()
         .title("Help")
         .borders(Borders::ALL)
-        .style(Style::default().bg(Color::Gray));
+        .style(Style::default().fg(Color::White).bg(Color::Black));
     f.render_widget(block.clone(), area);
     
     let inner = block.inner(area);
@@ -81,7 +85,7 @@ pub fn render(f: &mut Frame, area: Rect, query: &str, entries: &[HelpEntry]) {
         .split(inner);
     
     let query_p = Paragraph::new(format!("Search: {query}"))
-        .style(Style::default().bg(Color::Gray));
+        .style(Style::default().fg(Color::White).bg(Color::Black));
     f.render_widget(query_p, chunks[0]);
     
     let filtered = filter_entries(entries, query);
@@ -90,6 +94,6 @@ pub fn render(f: &mut Frame, area: Rect, query: &str, entries: &[HelpEntry]) {
         .map(|e| ListItem::new(format!("{} \u{2013} {}", e.key, e.action)))
         .collect();
     let list = List::new(items)
-        .style(Style::default().bg(Color::Gray));
+        .style(Style::default().fg(Color::White).bg(Color::Black));
     f.render_widget(list, chunks[1]);
 }

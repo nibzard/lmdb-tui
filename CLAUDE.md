@@ -107,3 +107,6 @@ Configuration is loaded on startup and includes theme, keybindings, and behavior
 ## Pull Requests
 - Ensure `cargo test` passes before raising a PR.
 - Provide a short summary of changes and link to relevant tasks in `Todo.md`.
+
+## Versioning
+- Always use semver and every major piece of work needs to at least increment patch number
