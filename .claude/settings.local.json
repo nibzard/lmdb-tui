@@ -14,7 +14,9 @@
       "Bash(cargo run:*)",
       "Bash(echo:*)",
       "Bash(git add:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(cargo search:*)"
     ],
     "deny": []
   }

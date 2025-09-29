@@ -93,6 +93,11 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
         text = format!("● {} ", text); // Bullet point indicates pending changes
     }
     
+    // Add loading indicator for query operations
+    if app.query_loading && app.current_view() == View::Query {
+        text = format!("{} {} ", app.get_spinner_char(), text);
+    }
+    
     // Truncate to fit available width
     let available_width = area.width as usize;
     let truncated_text = truncate_with_ellipsis(&text, available_width);

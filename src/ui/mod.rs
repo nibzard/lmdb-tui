@@ -31,6 +31,7 @@ pub fn render(f: &mut Frame, app: &App) {
                 page_offset: app.page_offset,
                 loading: app.query_loading,
                 config: &app.config,
+                spinner_char: app.get_spinner_char(),
             },
         ),
         View::CommandPalette => {
@@ -48,6 +49,7 @@ pub fn render(f: &mut Frame, app: &App) {
                         page_offset: app.page_offset,
                         loading: app.query_loading,
                         config: &app.config,
+                        spinner_char: app.get_spinner_char(),
                     },
                 ),
                 _ => {}
@@ -75,6 +77,7 @@ pub fn render(f: &mut Frame, app: &App) {
                         page_offset: app.page_offset,
                         loading: app.query_loading,
                         config: &app.config,
+                        spinner_char: app.get_spinner_char(),
                     },
                 ),
                 _ => {}
@@ -99,6 +102,7 @@ pub fn render(f: &mut Frame, app: &App) {
                         page_offset: app.page_offset,
                         loading: app.query_loading,
                         config: &app.config,
+                        spinner_char: app.get_spinner_char(),
                     },
                 ),
                 _ => {}
@@ -121,6 +125,7 @@ pub fn render(f: &mut Frame, app: &App) {
                         page_offset: app.page_offset,
                         loading: app.query_loading,
                         config: &app.config,
+                        spinner_char: app.get_spinner_char(),
                     },
                 ),
                 _ => {}
@@ -143,6 +148,7 @@ pub fn render(f: &mut Frame, app: &App) {
                         page_offset: app.page_offset,
                         loading: app.query_loading,
                         config: &app.config,
+                        spinner_char: app.get_spinner_char(),
                     },
                 ),
                 _ => {}

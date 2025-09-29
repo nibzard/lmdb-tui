@@ -18,6 +18,7 @@ fn query_view_snapshot() -> anyhow::Result<()> {
             page_offset: 0,
             loading: false,
             config: &cfg,
+            spinner_char: "",
         });
     })?;
     let buffer = terminal.backend().buffer();

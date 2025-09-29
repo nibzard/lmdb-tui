@@ -53,6 +53,10 @@ pub const DEFAULT_ENTRIES: &[HelpEntry] = &[
         key: "F5",
         action: "Refresh database view",
     },
+    HelpEntry {
+        key: "F6",
+        action: "Cycle theme (Dark/Light/High Contrast)",
+    },
 ];
 
 /// Filter help entries by a query string (case-insensitive).

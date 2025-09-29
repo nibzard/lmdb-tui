@@ -1,13 +1,16 @@
 use std::io::{self};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use crossterm::cursor::Show;
+use crossterm::cursor::{Hide, Show};
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use crossterm::execute;
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen,
+};
+use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
 use heed::Env;
 use notify::{Watcher, RecommendedWatcher, RecursiveMode};
 use ratatui::backend::CrosstermBackend;
@@ -21,7 +24,8 @@ use crate::db::undo::UndoStack;
 use crate::jobs::{JobQueue, JobResult};
 
 use crate::config::Config;
-use crate::constants::DEFAULT_ENTRY_LIMIT;
+use crate::constants::{DEFAULT_ENTRY_LIMIT, EVENT_POLL_TIMEOUT_MS, DEFAULT_PAGE_SIZE, 
+                      HELP_POPUP_PERCENTAGE, MAX_JUMP_HISTORY, FILE_WATCH_DEBOUNCE_SECS};
 use crate::db::env::{list_databases, list_entries, open_env};
 use crate::ui::{
     self,
@@ -42,15 +46,17 @@ pub struct RawModeGuard;
 impl RawModeGuard {
     pub fn new() -> io::Result<Self> {
         enable_raw_mode()?;
+        let mut stdout = io::stdout();
+        execute!(stdout, EnterAlternateScreen, Clear(ClearType::All), Hide)?;
         Ok(Self)
     }
 }
 
 impl Drop for RawModeGuard {
     fn drop(&mut self) {
-        let _ = disable_raw_mode();
         let mut stdout = io::stdout();
-        let _ = execute!(stdout, Show);
+        let _ = execute!(stdout, Show, LeaveAlternateScreen);
+        let _ = disable_raw_mode();
     }
 }
 
@@ -89,6 +95,9 @@ pub enum Action {
     ConfirmEdit,
     ConfirmDelete,
     Refresh,
+    CycleTheme,
+    NextPageMain,
+    PrevPageMain,
     Quit,
 }
 
@@ -110,6 +119,7 @@ pub enum CommandId {
     Undo,
     Redo,
     Refresh,
+    CycleTheme,
     Quit,
 }
 
@@ -137,8 +147,12 @@ pub struct App {
     pub total_entries: usize,
     /// Current page offset for pagination.
     pub page_offset: usize,
+    /// Whether to enable lazy loading for better performance on large datasets
+    pub lazy_loading_enabled: bool,
     /// Whether a query is currently being executed.
     pub query_loading: bool,
+    /// Loading spinner state for animations
+    pub loading_spinner_state: usize,
     pub job_queue: JobQueue,
     pub env_stats: Option<EnvStats>,
     pub db_stats: Option<DbStats>,
@@ -164,6 +178,7 @@ pub struct App {
     pub db_path: PathBuf,
     pub file_watcher: Option<RecommendedWatcher>,
     pub file_events: mpsc::Receiver<notify::Result<notify::Event>>,
+    pub last_file_event: Option<Instant>,
 }
 
 impl App {
@@ -203,7 +218,9 @@ impl App {
             query_cursor: 0,
             total_entries: 0,
             page_offset: 0,
+            lazy_loading_enabled: true,
             query_loading: false,
+            loading_spinner_state: 0,
             job_queue,
             env_stats: None,
             db_stats: None,
@@ -213,7 +230,7 @@ impl App {
             undo_stack: UndoStack::new(),
             has_pending_changes: false,
             bookmarks: Bookmarks::new(),
-            jump_history: JumpHistory::new(50), // Keep last 50 visited keys
+            jump_history: JumpHistory::new(MAX_JUMP_HISTORY),
             cursor: 0,
             command_palette_query: String::new(),
             command_palette_selected: 0,
@@ -229,6 +246,7 @@ impl App {
             db_path: db_path.to_path_buf(),
             file_watcher: watcher,
             file_events: rx,
+            last_file_event: None,
         })
     }
 
@@ -325,6 +343,32 @@ impl App {
         }
     }
 
+    /// Update loading spinner animation state
+    pub fn update_spinner(&mut self) {
+        if self.query_loading {
+            self.loading_spinner_state = (self.loading_spinner_state + 1) % 8;
+        }
+    }
+
+    /// Get current spinner character for loading animations
+    pub fn get_spinner_char(&self) -> &'static str {
+        if !self.query_loading {
+            return "";
+        }
+        
+        match self.loading_spinner_state {
+            0 => "⠋",
+            1 => "⠙",
+            2 => "⠹",
+            3 => "⠸",
+            4 => "⠼",
+            5 => "⠴",
+            6 => "⠦",
+            7 => "⠧",
+            _ => "⠋",
+        }
+    }
+
 
     pub fn reduce(&mut self, action: Action) -> Result<()> {
         match action {
@@ -415,7 +459,7 @@ impl App {
             }
             Action::NextPage => {
                 if self.current_view() == View::Query {
-                    let page_size = 100;
+                    let page_size = DEFAULT_PAGE_SIZE;
                     let max_offset = self.total_entries.saturating_sub(page_size);
                     if self.page_offset < max_offset {
                         self.page_offset = (self.page_offset + page_size).min(max_offset);
@@ -426,7 +470,7 @@ impl App {
             }
             Action::PrevPage => {
                 if self.current_view() == View::Query {
-                    let page_size = 100;
+                    let page_size = DEFAULT_PAGE_SIZE;
                     if self.page_offset >= page_size {
                         self.page_offset = self.page_offset.saturating_sub(page_size);
                         self.query_cursor = 0;
@@ -520,6 +564,9 @@ impl App {
                     }
                     CommandId::Refresh => {
                         return self.reduce(Action::Refresh);
+                    }
+                    CommandId::CycleTheme => {
+                        return self.reduce(Action::CycleTheme);
                     }
                     CommandId::Quit => {
                         return self.reduce(Action::Quit);
@@ -722,6 +769,42 @@ impl App {
                     }
                 }
             }
+            Action::CycleTheme => {
+                // Cycle through available themes
+                self.config.theme = match self.config.theme.name.as_str() {
+                    "Dark" => crate::config::Theme::light(),
+                    "Light" => crate::config::Theme::high_contrast(),
+                    "High Contrast" => crate::config::Theme::dark(),
+                    _ => crate::config::Theme::dark(),
+                };
+            }
+            Action::NextPageMain => {
+                if self.current_view() == View::Main && self.lazy_loading_enabled {
+                    let page_size = DEFAULT_PAGE_SIZE;
+                    if self.cursor >= self.entries.len().saturating_sub(1) {
+                        // Load next page
+                        let offset = self.entries.len();
+                        if let Some(db_name) = self.db_names.get(self.selected) {
+                            if let Ok(next_entries) = crate::db::env::list_entries_paginated(
+                                &self.env, db_name, offset, page_size
+                            ) {
+                                if !next_entries.is_empty() {
+                                    self.entries.extend(next_entries);
+                                }
+                            }
+                        }
+                    }
+                    // Move cursor to next item
+                    if self.cursor < self.entries.len().saturating_sub(1) {
+                        self.cursor += 1;
+                    }
+                }
+            }
+            Action::PrevPageMain => {
+                if self.current_view() == View::Main && self.cursor > 0 {
+                    self.cursor -= 1;
+                }
+            }
         }
         Ok(())
     }
@@ -816,6 +899,13 @@ impl App {
                 keybinding: Some("F5".into()),
             },
             Command {
+                id: CommandId::CycleTheme,
+                name: "Cycle Theme".into(),
+                description: "Switch between Dark, Light, and High Contrast themes".into(),
+                keywords: vec!["theme".into(), "color".into(), "appearance".into(), "dark".into(), "light".into()],
+                keybinding: Some("F6".into()),
+            },
+            Command {
                 id: CommandId::ExportDatabase,
                 name: "Export Database".into(),
                 description: "Export current database to file".into(),
@@ -845,15 +935,36 @@ impl App {
         if self.command_palette_query.is_empty() {
             self.filtered_commands = all_commands;
         } else {
-            let query = self.command_palette_query.to_lowercase();
-            self.filtered_commands = all_commands
+            let matcher = SkimMatcherV2::default();
+            let query = &self.command_palette_query;
+            
+            // Score each command based on fuzzy match against name, description, and keywords
+            let mut scored_commands: Vec<(Command, i64)> = all_commands
                 .into_iter()
-                .filter(|cmd| {
-                    cmd.name.to_lowercase().contains(&query) ||
-                    cmd.description.to_lowercase().contains(&query) ||
-                    cmd.keywords.iter().any(|k| k.to_lowercase().contains(&query))
+                .filter_map(|cmd| {
+                    let name_score = matcher.fuzzy_match(&cmd.name, query).unwrap_or(0);
+                    let desc_score = matcher.fuzzy_match(&cmd.description, query).unwrap_or(0);
+                    let keyword_score = cmd.keywords
+                        .iter()
+                        .map(|k| matcher.fuzzy_match(k, query).unwrap_or(0))
+                        .max()
+                        .unwrap_or(0);
+                    
+                    // Use the best score among name, description, and keywords
+                    let best_score = name_score.max(desc_score).max(keyword_score);
+                    
+                    if best_score > 0 {
+                        Some((cmd, best_score))
+                    } else {
+                        None
+                    }
                 })
                 .collect();
+            
+            // Sort by score (descending) to show best matches first
+            scored_commands.sort_by(|a, b| b.1.cmp(&a.1));
+            
+            self.filtered_commands = scored_commands.into_iter().map(|(cmd, _)| cmd).collect();
         }
         
         // Reset selection if it's out of bounds
@@ -923,15 +1034,19 @@ impl App {
         let db_name = &self.db_names[self.selected];
         let mode = crate::db::query::parse_query(&self.query)?;
         
-        // Get total count for pagination (scan all without limit)
-        let all_results = crate::db::query::scan(&self.env, db_name, mode.clone(), usize::MAX)?;
-        self.total_entries = all_results.len();
+        // PERFORMANCE OPTIMIZATION: Use separate count and paginated scan
+        // This eliminates the double scanning issue
+        self.total_entries = crate::db::query::count_matches(&self.env, db_name, mode.clone())?;
         
-        // Get current page results
-        let page_size = 100;
-        let start = self.page_offset;
-        let end = (start + page_size).min(all_results.len());
-        self.entries = all_results.into_iter().skip(start).take(end - start).collect();
+        // Get current page results using optimized pagination
+        let page_size = DEFAULT_PAGE_SIZE;
+        self.entries = crate::db::query::scan_paginated(
+            &self.env, 
+            db_name, 
+            mode, 
+            self.page_offset, 
+            page_size
+        )?;
         
         if self.query_cursor >= self.entries.len() {
             self.query_cursor = self.entries.len().saturating_sub(1);
@@ -955,6 +1070,7 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
 
     while app.running {
         app.process_background_jobs();
+        app.update_spinner();
         terminal.draw(|f| {
             ui::render(f, &app);
             if app.show_help {
@@ -962,9 +1078,9 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                     .direction(Direction::Vertical)
                     .constraints(
                         [
-                            Constraint::Percentage((100 - 60) / 2),
-                            Constraint::Percentage(60),
-                            Constraint::Percentage((100 - 60) / 2),
+                            Constraint::Percentage((100 - HELP_POPUP_PERCENTAGE) / 2),
+                            Constraint::Percentage(HELP_POPUP_PERCENTAGE),
+                            Constraint::Percentage((100 - HELP_POPUP_PERCENTAGE) / 2),
                         ]
                         .as_ref(),
                     )
@@ -974,9 +1090,9 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                     .direction(Direction::Horizontal)
                     .constraints(
                         [
-                            Constraint::Percentage((100 - 60) / 2),
-                            Constraint::Percentage(60),
-                            Constraint::Percentage((100 - 60) / 2),
+                            Constraint::Percentage((100 - HELP_POPUP_PERCENTAGE) / 2),
+                            Constraint::Percentage(HELP_POPUP_PERCENTAGE),
+                            Constraint::Percentage((100 - HELP_POPUP_PERCENTAGE) / 2),
                         ]
                         .as_ref(),
                     )
@@ -985,7 +1101,7 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
             }
         })?;
 
-        if event::poll(Duration::from_millis(200))? {
+        if event::poll(Duration::from_millis(EVENT_POLL_TIMEOUT_MS))? {
             if let Event::Key(key) = event::read()? {
                 if app.show_help {
                     match key.code {
@@ -1042,6 +1158,12 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                             Some(Action::ExecuteCommand(CommandId::DeleteEntry))
                         } else if key.code == KeyCode::F(5) {
                             Some(Action::Refresh)
+                        } else if key.code == KeyCode::F(6) {
+                            Some(Action::CycleTheme)
+                        } else if key.code == KeyCode::PageDown {
+                            Some(Action::NextPageMain)
+                        } else if key.code == KeyCode::PageUp {
+                            Some(Action::PrevPageMain)
                         } else {
                             None
                         }
@@ -1233,18 +1355,33 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
             }
         }
 
-        // Check for file system events (non-blocking)
+        // Check for file system events (non-blocking) with debouncing
+        let mut should_refresh = false;
+        let now = Instant::now();
+        
         while let Ok(event_result) = app.file_events.try_recv() {
             if let Ok(event) = event_result {
                 match event.kind {
                     notify::EventKind::Create(_) | notify::EventKind::Modify(_) | notify::EventKind::Remove(_) => {
-                        // Database file changed, trigger refresh
-                        app.reduce(Action::Refresh)?;
-                        break; // Only process one refresh per iteration to avoid spam
+                        // Check if enough time has passed since last event (debouncing)
+                        if let Some(last_event) = app.last_file_event {
+                            if now.duration_since(last_event).as_secs() < FILE_WATCH_DEBOUNCE_SECS {
+                                // Too soon, skip this event
+                                continue;
+                            }
+                        }
+                        
+                        app.last_file_event = Some(now);
+                        should_refresh = true;
                     }
                     _ => {} // Ignore other event types
                 }
             }
+        }
+        
+        // Only refresh once per iteration, even if multiple events occurred
+        if should_refresh {
+            app.reduce(Action::Refresh)?;
         }
     }
     Ok(())

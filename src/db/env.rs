@@ -48,6 +48,16 @@ pub fn list_databases(env: &Env) -> Result<Vec<String>> {
 }
 
 pub fn list_entries(env: &Env, db_name: &str, limit: usize) -> Result<Vec<(String, Vec<u8>)>> {
+    list_entries_paginated(env, db_name, 0, limit)
+}
+
+/// Lazy loading with offset/limit pagination for efficient browsing of large datasets
+pub fn list_entries_paginated(
+    env: &Env, 
+    db_name: &str, 
+    offset: usize, 
+    limit: usize
+) -> Result<Vec<(String, Vec<u8>)>> {
     let rtxn = env.read_txn()?;
 
     let db: Database<Str, Bytes> = if db_name == "(unnamed)" {
@@ -61,14 +71,43 @@ pub fn list_entries(env: &Env, db_name: &str, limit: usize) -> Result<Vec<(Strin
     };
 
     let iter = db.iter(&rtxn)?;
-    let mut items = Vec::new();
-    for (count, result) in iter.enumerate() {
-        if count >= limit {
+    let mut items = Vec::with_capacity(limit.min(1000));
+    let mut skipped = 0;
+    
+    for result in iter {
+        if skipped < offset {
+            skipped += 1;
+            continue;
+        }
+        
+        if items.len() >= limit {
             break;
         }
+        
         let (key, value) = result?;
         items.push((key.to_string(), value.to_vec()));
     }
+    
     // Read transaction will be automatically dropped/aborted here
     Ok(items)
+}
+
+/// Count total entries in a database without loading them (for pagination)
+pub fn count_entries(env: &Env, db_name: &str) -> Result<usize> {
+    let rtxn = env.read_txn()?;
+
+    let db: Database<Str, Bytes> = if db_name == "(unnamed)" {
+        // Open the unnamed database
+        env.open_database(&rtxn, None)?
+            .ok_or_else(|| anyhow!("unnamed database not found"))?
+    } else {
+        // Open a named database
+        env.open_database(&rtxn, Some(db_name))?
+            .ok_or_else(|| anyhow!("database '{}' not found", db_name))?
+    };
+
+    let iter = db.iter(&rtxn)?;
+    let count = iter.count();
+    
+    Ok(count)
 }

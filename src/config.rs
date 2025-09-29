@@ -47,24 +47,82 @@ impl Default for KeyBindings {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Theme {
+    pub name: String,
     pub selected_fg: Color,
     pub selected_bg: Color,
+    pub background: Color,
+    pub foreground: Color,
+    pub border: Color,
+    pub highlight: Color,
+    pub dim: Color,
 }
 
 impl Theme {
     pub fn selected_style(&self) -> Style {
         Style::default().fg(self.selected_fg).bg(self.selected_bg)
     }
+    
+    pub fn background_style(&self) -> Style {
+        Style::default().fg(self.foreground).bg(self.background)
+    }
+    
+    pub fn border_style(&self) -> Style {
+        Style::default().fg(self.border)
+    }
+    
+    pub fn highlight_style(&self) -> Style {
+        Style::default().fg(self.highlight)
+    }
+    
+    pub fn dim_style(&self) -> Style {
+        Style::default().fg(self.dim)
+    }
+    
+    pub fn dark() -> Self {
+        Self {
+            name: "Dark".into(),
+            selected_fg: Color::Black,
+            selected_bg: Color::Yellow,
+            background: Color::Black,
+            foreground: Color::White,
+            border: Color::Gray,
+            highlight: Color::Cyan,
+            dim: Color::DarkGray,
+        }
+    }
+    
+    pub fn light() -> Self {
+        Self {
+            name: "Light".into(),
+            selected_fg: Color::White,
+            selected_bg: Color::Blue,
+            background: Color::White,
+            foreground: Color::Black,
+            border: Color::DarkGray,
+            highlight: Color::Blue,
+            dim: Color::Gray,
+        }
+    }
+    
+    pub fn high_contrast() -> Self {
+        Self {
+            name: "High Contrast".into(),
+            selected_fg: Color::Black,
+            selected_bg: Color::White,
+            background: Color::Black,
+            foreground: Color::White,
+            border: Color::White,
+            highlight: Color::Yellow,
+            dim: Color::Gray,
+        }
+    }
 }
 
 impl Default for Theme {
     fn default() -> Self {
-        Self {
-            selected_fg: Color::Black,
-            selected_bg: Color::Yellow,
-        }
+        Self::dark()
     }
 }
 
@@ -130,9 +188,11 @@ impl From<RawConfig> for Config {
                 help: parse_key(&raw.keybindings.help),
                 query: parse_key(&raw.keybindings.query),
             },
-            theme: Theme {
-                selected_fg: parse_color(&raw.theme.selected_fg),
-                selected_bg: parse_color(&raw.theme.selected_bg),
+            theme: {
+                let mut theme = Theme::default();
+                theme.selected_fg = parse_color(&raw.theme.selected_fg);
+                theme.selected_bg = parse_color(&raw.theme.selected_bg);
+                theme
             },
         }
     }

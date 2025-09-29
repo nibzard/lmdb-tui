@@ -35,13 +35,14 @@ pub struct QueryViewParams<'a> {
     pub page_offset: usize,
     pub loading: bool,
     pub config: &'a Config,
+    pub spinner_char: &'a str,
 }
 
 /// Render the query view with input and result list.
 pub fn render(f: &mut Frame, area: Rect, params: QueryViewParams) {
-    // Create title with pagination info
+    // Create title with pagination info and loading indicator
     let pagination_info = if params.loading {
-        "Loading...".to_string()
+        format!(" - {} Loading...", params.spinner_char)
     } else if params.total_entries > 0 {
         let current_result = params.page_offset + params.selected;
         format!(" - {}", format_pagination(current_result, params.total_entries, params.entries.len()))
