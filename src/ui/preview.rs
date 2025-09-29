@@ -84,7 +84,7 @@ pub fn render(f: &mut Frame, key: &str, value: &[u8]) {
 }
 
 /// Format the value content for display, handling both text and binary data.
-fn format_value_content(value: &[u8]) -> Vec<Line> {
+fn format_value_content(value: &[u8]) -> Vec<Line<'_>> {
     let mut lines = Vec::new();
 
     // Try to interpret as UTF-8 text first
