@@ -8,8 +8,7 @@ use super::txn::Txn;
 
 /// Put a key/value pair into the database.
 pub fn put(env: &Env, txn: &mut Txn<'_>, db_name: &str, key: &str, value: &[u8]) -> Result<()> {
-    let db: Database<Str, Bytes> = env
-        .create_database(txn.inner_mut(), Some(db_name))?;
+    let db: Database<Str, Bytes> = env.create_database(txn.inner_mut(), Some(db_name))?;
     db.put(txn.inner_mut(), key, value)?;
     Ok(())
 }

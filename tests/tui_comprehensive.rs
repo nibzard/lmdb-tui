@@ -39,7 +39,7 @@ fn test_main_view_navigation() -> anyhow::Result<()> {
     // Basic assertions
     assert!(!snapshots.is_empty());
     assert_eq!(snapshots[0].app_state.current_view, "Main");
-    
+
     Ok(())
 }
 
@@ -83,7 +83,7 @@ fn test_query_view_functionality() -> anyhow::Result<()> {
     // Assertions
     assert!(snapshots.len() >= 5);
     assert_eq!(snapshots.last().unwrap().app_state.current_view, "Main");
-    
+
     Ok(())
 }
 
@@ -103,7 +103,7 @@ fn test_query_patterns() -> anyhow::Result<()> {
     for (query, description) in test_queries {
         // Enter query mode
         harness.send_key(KeyCode::Char('/'))?;
-        
+
         // Clear any existing query
         while !harness.app.query.is_empty() {
             harness.send_key(KeyCode::Backspace)?;
@@ -248,7 +248,7 @@ fn test_user_workflows() -> anyhow::Result<()> {
 
     // Workflow 1: Browse databases and entries
     snapshots.push(harness.capture_snapshot("workflow_start")?);
-    
+
     // Navigate through databases
     harness.send_key(KeyCode::Down)?;
     snapshots.push(harness.capture_snapshot("database_selected")?);
@@ -256,7 +256,7 @@ fn test_user_workflows() -> anyhow::Result<()> {
     // Workflow 2: Search for specific data
     harness.send_key(KeyCode::Char('/'))?;
     snapshots.push(harness.capture_snapshot("search_initiated")?);
-    
+
     harness.type_string("user")?;
     snapshots.push(harness.capture_snapshot("search_results")?);
 

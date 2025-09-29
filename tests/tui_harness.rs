@@ -11,7 +11,7 @@ use ratatui::Terminal;
 use serde::{Deserialize, Serialize};
 use tempfile::TempDir;
 
-use lmdb_tui::app::{App, Action};
+use lmdb_tui::app::{Action, App};
 use lmdb_tui::config::Config;
 use lmdb_tui::db::env::{list_databases, open_env};
 
@@ -58,10 +58,10 @@ impl TuiTestHarness {
         // Create temporary test database
         let temp_dir = TempDir::new()?;
         let env = open_env(temp_dir.path(), false)?;
-        
+
         // Add some test data
         Self::populate_test_data(&env)?;
-        
+
         let db_names = list_databases(&env)?;
         let config = Config::default();
         let app = App::new(env, db_names, config, temp_dir.path())?;
@@ -79,7 +79,12 @@ impl TuiTestHarness {
     }
 
     /// Create test harness with specific database path
-    pub fn with_database(test_name: &str, db_path: &std::path::Path, width: u16, height: u16) -> anyhow::Result<Self> {
+    pub fn with_database(
+        test_name: &str,
+        db_path: &std::path::Path,
+        width: u16,
+        height: u16,
+    ) -> anyhow::Result<Self> {
         let backend = TestBackend::new(width, height);
         let terminal = Terminal::new(backend)?;
 
@@ -102,23 +107,31 @@ impl TuiTestHarness {
 
     /// Populate test database with sample data
     fn populate_test_data(env: &heed::Env) -> anyhow::Result<()> {
-        use heed::types::{Str, Bytes};
-        
+        use heed::types::{Bytes, Str};
+
         let mut wtxn = env.write_txn()?;
-        
+
         // Create a named database
         let test_db = env.create_database::<Str, Bytes>(&mut wtxn, Some("test_data"))?;
-        
+
         // Add sample entries
         test_db.put(&mut wtxn, "user:1", b"{\"name\":\"Alice\",\"age\":30}")?;
         test_db.put(&mut wtxn, "user:2", b"{\"name\":\"Bob\",\"age\":25}")?;
-        test_db.put(&mut wtxn, "config:app", b"{\"theme\":\"dark\",\"version\":\"1.0\"}")?;
-        test_db.put(&mut wtxn, "session:123", b"{\"started\":\"2024-01-01\",\"active\":true}")?;
-        
+        test_db.put(
+            &mut wtxn,
+            "config:app",
+            b"{\"theme\":\"dark\",\"version\":\"1.0\"}",
+        )?;
+        test_db.put(
+            &mut wtxn,
+            "session:123",
+            b"{\"started\":\"2024-01-01\",\"active\":true}",
+        )?;
+
         // Add some entries to the unnamed database
         let unnamed_db = env.create_database::<Str, Bytes>(&mut wtxn, None)?;
         unnamed_db.put(&mut wtxn, "default:setting", b"default_value")?;
-        
+
         wtxn.commit()?;
         Ok(())
     }
@@ -129,29 +142,32 @@ impl TuiTestHarness {
     }
 
     /// Simulate a key press with modifiers
-    pub fn send_key_with_modifiers(&mut self, key_code: KeyCode, modifiers: KeyModifiers) -> anyhow::Result<()> {
+    pub fn send_key_with_modifiers(
+        &mut self,
+        key_code: KeyCode,
+        modifiers: KeyModifiers,
+    ) -> anyhow::Result<()> {
         let key_event = KeyEvent::new(key_code, modifiers);
         let _event = Event::Key(key_event);
-        
+
         // Simulate the event handling logic from app.rs
         let action = match self.app.current_view() {
-            lmdb_tui::app::View::Main => {
-                match key_code {
-                    k if k == self.app.config.keybindings.quit => Some(Action::Quit),
-                    k if k == self.app.config.keybindings.help => Some(Action::ToggleHelp),
-                    k if k == self.app.config.keybindings.query => Some(Action::EnterQuery),
-                    k if k == self.app.config.keybindings.down => Some(Action::NextDb),
-                    k if k == self.app.config.keybindings.up => Some(Action::PrevDb),
-                    _ => None,
-                }
-            }
+            lmdb_tui::app::View::Main => match key_code {
+                k if k == self.app.config.keybindings.quit => Some(Action::Quit),
+                k if k == self.app.config.keybindings.help => Some(Action::ToggleHelp),
+                k if k == self.app.config.keybindings.query => Some(Action::EnterQuery),
+                k if k == self.app.config.keybindings.down => Some(Action::NextDb),
+                k if k == self.app.config.keybindings.up => Some(Action::PrevDb),
+                _ => None,
+            },
             lmdb_tui::app::View::Query => {
                 match key_code {
                     KeyCode::Esc => Some(Action::ExitView),
                     k if k == self.app.config.keybindings.quit => Some(Action::ExitView),
                     k if k == self.app.config.keybindings.down => {
                         if !self.app.entries.is_empty() {
-                            self.app.query_cursor = (self.app.query_cursor + 1) % self.app.entries.len();
+                            self.app.query_cursor =
+                                (self.app.query_cursor + 1) % self.app.entries.len();
                         }
                         None
                     }
@@ -186,7 +202,9 @@ impl TuiTestHarness {
                 // Preview is not used in tests, just exit on any key
                 Some(Action::ExitView)
             }
-            lmdb_tui::app::View::CreateEntry | lmdb_tui::app::View::EditEntry | lmdb_tui::app::View::DeleteConfirm => {
+            lmdb_tui::app::View::CreateEntry
+            | lmdb_tui::app::View::EditEntry
+            | lmdb_tui::app::View::DeleteConfirm => {
                 // Dialogs are not used in tests, just exit on any key
                 Some(Action::ExitView)
             }
@@ -219,18 +237,19 @@ impl TuiTestHarness {
     /// Capture a snapshot of the current terminal state
     pub fn capture_snapshot(&mut self, description: &str) -> anyhow::Result<TuiSnapshot> {
         self.render()?;
-        
+
         let buffer = self.terminal.backend().buffer();
-        let snapshot_id = format!("{}_{}_{:03}", 
-            self.test_name, 
-            description.replace(' ', "_"), 
+        let snapshot_id = format!(
+            "{}_{}_{:03}",
+            self.test_name,
+            description.replace(' ', "_"),
             self.snapshot_counter
         );
-        
+
         let dimensions = (buffer.area.width, buffer.area.height);
         let content = self.buffer_to_string(buffer);
         let ansi_content = self.buffer_to_ansi_string(buffer);
-        
+
         let app_state = AppStateSnapshot {
             current_view: format!("{:?}", self.app.current_view()),
             selected_db: self.app.db_names.get(self.app.selected).cloned(),
@@ -286,13 +305,13 @@ impl TuiTestHarness {
         for y in 0..buffer.area.height {
             for x in 0..buffer.area.width {
                 let cell = buffer.get(x, y);
-                
+
                 // Add ANSI codes if style changed
                 if cell.style() != current_style {
                     result.push_str(&self.style_to_ansi(cell.style()));
                     current_style = cell.style();
                 }
-                
+
                 result.push_str(cell.symbol());
             }
             if y < buffer.area.height - 1 {
@@ -353,23 +372,17 @@ impl TuiTestHarness {
     /// Save snapshot to files
     fn save_snapshot(&self, snapshot: &TuiSnapshot) -> anyhow::Result<()> {
         let base_path = self.snapshots_dir.join(&snapshot.snapshot_id);
-        
+
         // Save as plain text
-        fs::write(
-            base_path.with_extension("txt"),
-            &snapshot.content
-        )?;
-        
+        fs::write(base_path.with_extension("txt"), &snapshot.content)?;
+
         // Save as ANSI
-        fs::write(
-            base_path.with_extension("ansi"),
-            &snapshot.ansi_content
-        )?;
-        
+        fs::write(base_path.with_extension("ansi"), &snapshot.ansi_content)?;
+
         // Save as JSON for AI analysis
         fs::write(
             base_path.with_extension("json"),
-            serde_json::to_string_pretty(snapshot)?
+            serde_json::to_string_pretty(snapshot)?,
         )?;
 
         Ok(())
@@ -398,7 +411,9 @@ impl TuiTestHarness {
                 test_name: self.test_name.clone(),
                 total_snapshots: snapshots.len(),
                 snapshots: snapshots.to_vec(),
-                instructions: "Analyze UI layout, consistency, user experience, and identify potential issues".to_string(),
+                instructions:
+                    "Analyze UI layout, consistency, user experience, and identify potential issues"
+                        .to_string(),
                 analysis_hints: vec![
                     "Check for visual consistency across views".to_string(),
                     "Verify proper highlighting and selection states".to_string(),
@@ -409,7 +424,9 @@ impl TuiTestHarness {
             },
         };
 
-        let report_path = self.snapshots_dir.join(format!("{}_report.json", self.test_name));
+        let report_path = self
+            .snapshots_dir
+            .join(format!("{}_report.json", self.test_name));
         fs::write(report_path, serde_json::to_string_pretty(&report)?)?;
 
         Ok(())
@@ -431,12 +448,12 @@ mod tests {
     fn test_snapshot_capture() -> anyhow::Result<()> {
         let mut harness = TuiTestHarness::new("test_snapshot", 40, 10)?;
         let snapshot = harness.capture_snapshot("initial_state")?;
-        
+
         assert_eq!(snapshot.dimensions, (40, 10));
         assert!(!snapshot.content.is_empty());
         assert!(!snapshot.ansi_content.is_empty());
         assert_eq!(snapshot.app_state.current_view, "Main");
-        
+
         Ok(())
     }
 }
