@@ -53,41 +53,45 @@ pub fn list_entries(env: &Env, db_name: &str, limit: usize) -> Result<Vec<(Strin
 
 /// Lazy loading with offset/limit pagination for efficient browsing of large datasets
 pub fn list_entries_paginated(
-    env: &Env, 
-    db_name: &str, 
-    offset: usize, 
-    limit: usize
+    env: &Env,
+    db_name: &str,
+    offset: usize,
+    limit: usize,
 ) -> Result<Vec<(String, Vec<u8>)>> {
     let rtxn = env.read_txn()?;
 
     let db: Database<Str, Bytes> = if db_name == "(unnamed)" {
         // Open the unnamed database
-        env.open_database(&rtxn, None)?
-            .ok_or_else(|| anyhow!("unnamed database not found"))?
+        match env.open_database(&rtxn, None)? {
+            Some(db) => db,
+            None => return Ok(Vec::new()), // Database doesn't exist, return empty list
+        }
     } else {
         // Open a named database
-        env.open_database(&rtxn, Some(db_name))?
-            .ok_or_else(|| anyhow!("database '{}' not found", db_name))?
+        match env.open_database(&rtxn, Some(db_name))? {
+            Some(db) => db,
+            None => return Ok(Vec::new()), // Database doesn't exist, return empty list
+        }
     };
 
     let iter = db.iter(&rtxn)?;
     let mut items = Vec::with_capacity(limit.min(1000));
     let mut skipped = 0;
-    
+
     for result in iter {
         if skipped < offset {
             skipped += 1;
             continue;
         }
-        
+
         if items.len() >= limit {
             break;
         }
-        
+
         let (key, value) = result?;
         items.push((key.to_string(), value.to_vec()));
     }
-    
+
     // Read transaction will be automatically dropped/aborted here
     Ok(items)
 }
@@ -108,6 +112,6 @@ pub fn count_entries(env: &Env, db_name: &str) -> Result<usize> {
 
     let iter = db.iter(&rtxn)?;
     let count = iter.count();
-    
+
     Ok(count)
 }

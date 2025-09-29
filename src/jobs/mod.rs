@@ -1,4 +1,7 @@
-use std::{sync::Arc, thread::{self, JoinHandle}};
+use std::{
+    sync::Arc,
+    thread::{self, JoinHandle},
+};
 
 use anyhow::Result;
 use tokio::{sync::mpsc, task};

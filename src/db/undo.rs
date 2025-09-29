@@ -33,22 +33,22 @@ impl UndoStack {
             pos: 0,
         }
     }
-    
+
     /// Check if undo is available
     pub fn can_undo(&self) -> bool {
         self.pos > 0
     }
-    
+
     /// Check if redo is available
     pub fn can_redo(&self) -> bool {
         self.pos < self.ops.len()
     }
-    
+
     /// Get number of operations that can be undone
     pub fn undo_count(&self) -> usize {
         self.pos
     }
-    
+
     /// Get number of operations that can be redone
     pub fn redo_count(&self) -> usize {
         self.ops.len() - self.pos

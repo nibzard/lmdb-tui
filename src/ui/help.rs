@@ -75,29 +75,28 @@ pub fn filter_entries<'a>(entries: &'a [HelpEntry], query: &str) -> Vec<&'a Help
 pub fn render(f: &mut Frame, area: Rect, query: &str, entries: &[HelpEntry]) {
     // Clear the background to ensure the popup appears on top
     f.render_widget(Clear, area);
-    
+
     let block = Block::default()
         .title("Help")
         .borders(Borders::ALL)
         .style(Style::default().fg(Color::White).bg(Color::Black));
     f.render_widget(block.clone(), area);
-    
+
     let inner = block.inner(area);
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(1), Constraint::Min(0)])
         .split(inner);
-    
+
     let query_p = Paragraph::new(format!("Search: {query}"))
         .style(Style::default().fg(Color::White).bg(Color::Black));
     f.render_widget(query_p, chunks[0]);
-    
+
     let filtered = filter_entries(entries, query);
     let items: Vec<ListItem> = filtered
         .into_iter()
         .map(|e| ListItem::new(format!("{} \u{2013} {}", e.key, e.action)))
         .collect();
-    let list = List::new(items)
-        .style(Style::default().fg(Color::White).bg(Color::Black));
+    let list = List::new(items).style(Style::default().fg(Color::White).bg(Color::Black));
     f.render_widget(list, chunks[1]);
 }

@@ -1,6 +1,6 @@
+use once_cell::sync::Lazy;
 use serde_json::Value;
 use std::sync::RwLock;
-use once_cell::sync::Lazy;
 
 /// Function signature for decoder plugins.
 pub type DecoderFn = Box<dyn Fn(&[u8]) -> Option<Value> + Send + Sync>;

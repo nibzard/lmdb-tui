@@ -1,7 +1,7 @@
 use ratatui::{
     prelude::{Constraint, Direction, Frame, Layout, Rect, Style},
     style::{Color, Modifier},
-    text::{Span, Line},
+    text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
 
@@ -45,11 +45,14 @@ pub fn render(f: &mut Frame, area: Rect, params: QueryViewParams) {
         format!(" - {} Loading...", params.spinner_char)
     } else if params.total_entries > 0 {
         let current_result = params.page_offset + params.selected;
-        format!(" - {}", format_pagination(current_result, params.total_entries, params.entries.len()))
+        format!(
+            " - {}",
+            format_pagination(current_result, params.total_entries, params.entries.len())
+        )
     } else {
         " - No results".to_string()
     };
-    
+
     let title = format!("Query{}", pagination_info);
     let block = Block::default().borders(Borders::ALL).title(title);
     f.render_widget(block.clone(), area);
@@ -58,7 +61,7 @@ pub fn render(f: &mut Frame, area: Rect, params: QueryViewParams) {
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(1), Constraint::Min(0)])
         .split(inner);
-    
+
     // Enhanced query input with type detection and cursor
     let query_display = if params.query.is_empty() {
         Span::styled("Enter a query...", Style::default().fg(Color::DarkGray))
@@ -68,22 +71,24 @@ pub fn render(f: &mut Frame, area: Rect, params: QueryViewParams) {
         let query_text = params.query.to_string();
         let query_width = chunks[0].width.saturating_sub(12); // Account for prefix and type indicator
         let truncated_query = truncate_with_ellipsis(&query_text, query_width as usize);
-        
-        Span::styled(
-            format!("[{}] {}", query_type, truncated_query),
-            style
-        )
+
+        Span::styled(format!("[{}] {}", query_type, truncated_query), style)
     };
-    
+
     let query_line = Line::from(vec![
         Span::raw("Query: "),
         query_display,
-        Span::styled("█", Style::default().fg(Color::White).add_modifier(Modifier::SLOW_BLINK)) // Cursor
+        Span::styled(
+            "█",
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::SLOW_BLINK),
+        ), // Cursor
     ]);
-    
+
     let p = Paragraph::new(query_line);
     f.render_widget(p, chunks[0]);
-    
+
     // Enhanced results list with improved formatting and indicators
     if params.entries.is_empty() && !params.loading {
         // Show helpful message when no results
@@ -98,7 +103,8 @@ pub fn render(f: &mut Frame, area: Rect, params: QueryViewParams) {
         f.render_widget(p, chunks[1]);
     } else {
         let entry_width = chunks[1].width.saturating_sub(4); // Account for borders and indicators
-        let items: Vec<ListItem> = params.entries
+        let items: Vec<ListItem> = params
+            .entries
             .iter()
             .enumerate()
             .map(|(i, (k, v))| {
@@ -107,39 +113,43 @@ pub fn render(f: &mut Frame, area: Rect, params: QueryViewParams) {
                     // Selected item with highlight and arrow indicator
                     Line::from(vec![
                         Span::styled("▶ ", Style::default().fg(Color::Yellow)),
-                        Span::styled(formatted, params.config.theme.selected_style())
+                        Span::styled(formatted, params.config.theme.selected_style()),
                     ])
                 } else {
                     // Regular item with spacing for alignment
-                    Line::from(vec![
-                        Span::raw("  "),
-                        Span::raw(formatted)
-                    ])
+                    Line::from(vec![Span::raw("  "), Span::raw(formatted)])
                 };
                 ListItem::new(line)
             })
             .collect();
-        
+
         let list = List::new(items);
         f.render_widget(list, chunks[1]);
-        
+
         // Add progress indicator for large result sets
         if params.total_entries > params.entries.len() {
-            let progress = (params.page_offset + params.selected) as f64 / params.total_entries as f64;
+            let progress =
+                (params.page_offset + params.selected) as f64 / params.total_entries as f64;
             let progress_area = Rect {
                 x: chunks[1].right().saturating_sub(1),
                 y: chunks[1].y + 1,
                 width: 1,
                 height: chunks[1].height.saturating_sub(2),
             };
-            
+
             // Simple vertical progress indicator
-            let progress_char = if progress < 0.2 { "▁" }
-                else if progress < 0.4 { "▂" }
-                else if progress < 0.6 { "▃" }
-                else if progress < 0.8 { "▄" }
-                else { "▅" };
-            
+            let progress_char = if progress < 0.2 {
+                "▁"
+            } else if progress < 0.4 {
+                "▂"
+            } else if progress < 0.6 {
+                "▃"
+            } else if progress < 0.8 {
+                "▄"
+            } else {
+                "▅"
+            };
+
             let progress_span = Span::styled(progress_char, Style::default().fg(Color::Blue));
             let p = Paragraph::new(progress_span);
             f.render_widget(p, progress_area);

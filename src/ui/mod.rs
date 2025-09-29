@@ -36,7 +36,12 @@ pub fn render(f: &mut Frame, app: &App) {
         ),
         View::CommandPalette => {
             // Render underlying view first
-            match app.view.get(app.view.len() - 2).copied().unwrap_or(View::Main) {
+            match app
+                .view
+                .get(app.view.len() - 2)
+                .copied()
+                .unwrap_or(View::Main)
+            {
                 View::Main => db_view::render(f, chunks[0], app),
                 View::Query => query::render(
                     f,
@@ -55,16 +60,24 @@ pub fn render(f: &mut Frame, app: &App) {
                 _ => {}
             }
             // Then render command palette popup
-            command_palette::render(f, command_palette::CommandPaletteParams {
-                query: &app.command_palette_query,
-                commands: &app.filtered_commands,
-                selected: app.command_palette_selected,
-                config: &app.config,
-            });
+            command_palette::render(
+                f,
+                command_palette::CommandPaletteParams {
+                    query: &app.command_palette_query,
+                    commands: &app.filtered_commands,
+                    selected: app.command_palette_selected,
+                    config: &app.config,
+                },
+            );
         }
         View::Preview => {
             // Render underlying view first
-            match app.view.get(app.view.len() - 2).copied().unwrap_or(View::Main) {
+            match app
+                .view
+                .get(app.view.len() - 2)
+                .copied()
+                .unwrap_or(View::Main)
+            {
                 View::Main => db_view::render(f, chunks[0], app),
                 View::Query => query::render(
                     f,
@@ -89,7 +102,12 @@ pub fn render(f: &mut Frame, app: &App) {
         }
         View::CreateEntry => {
             // Render underlying view first
-            match app.view.get(app.view.len() - 2).copied().unwrap_or(View::Main) {
+            match app
+                .view
+                .get(app.view.len() - 2)
+                .copied()
+                .unwrap_or(View::Main)
+            {
                 View::Main => db_view::render(f, chunks[0], app),
                 View::Query => query::render(
                     f,
@@ -112,7 +130,12 @@ pub fn render(f: &mut Frame, app: &App) {
         }
         View::EditEntry => {
             // Render underlying view first
-            match app.view.get(app.view.len() - 2).copied().unwrap_or(View::Main) {
+            match app
+                .view
+                .get(app.view.len() - 2)
+                .copied()
+                .unwrap_or(View::Main)
+            {
                 View::Main => db_view::render(f, chunks[0], app),
                 View::Query => query::render(
                     f,
@@ -135,7 +158,12 @@ pub fn render(f: &mut Frame, app: &App) {
         }
         View::DeleteConfirm => {
             // Render underlying view first
-            match app.view.get(app.view.len() - 2).copied().unwrap_or(View::Main) {
+            match app
+                .view
+                .get(app.view.len() - 2)
+                .copied()
+                .unwrap_or(View::Main)
+            {
                 View::Main => db_view::render(f, chunks[0], app),
                 View::Query => query::render(
                     f,

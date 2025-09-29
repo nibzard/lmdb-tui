@@ -8,10 +8,10 @@ pub mod errors;
 pub mod export;
 pub mod grpc;
 pub mod jobs;
+pub mod plugins;
 pub mod remote;
 pub mod ui;
 pub mod util;
-pub mod plugins;
 
 #[cfg(target_arch = "wasm32")]
 pub mod wasm;

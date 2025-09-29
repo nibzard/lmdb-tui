@@ -1,8 +1,8 @@
 use ratatui::{
     prelude::{Constraint, Direction, Frame, Layout, Rect, Style},
     style::{Color, Modifier},
-    text::{Span, Line},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Clear},
+    text::{Line, Span},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
 };
 
 use crate::app::Command;
@@ -26,7 +26,7 @@ pub fn render(f: &mut Frame, params: CommandPaletteParams) {
             Constraint::Percentage(20),
         ])
         .split(f.size());
-    
+
     let area = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
@@ -38,23 +38,23 @@ pub fn render(f: &mut Frame, params: CommandPaletteParams) {
 
     // Clear background
     f.render_widget(Clear, area);
-    
+
     // Main container
     let block = Block::default()
         .title("Command Palette (Ctrl+P)")
         .borders(Borders::ALL)
         .style(Style::default().bg(Color::Black));
     f.render_widget(block.clone(), area);
-    
+
     let inner = block.inner(area);
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(1), Constraint::Min(0)])
         .split(inner);
-    
+
     // Input field with fuzzy search indicator
     render_input(f, chunks[0], params.query);
-    
+
     // Command list with fuzzy matching highlights
     render_command_list(f, chunks[1], params);
 }
@@ -65,20 +65,21 @@ fn render_input(f: &mut Frame, area: Rect, query: &str) {
         Span::styled(query, Style::default().fg(Color::White)),
         Span::styled("█", Style::default().add_modifier(Modifier::SLOW_BLINK)),
     ]);
-    
+
     let paragraph = Paragraph::new(input_line);
     f.render_widget(paragraph, area);
 }
 
 fn render_command_list(f: &mut Frame, area: Rect, params: CommandPaletteParams) {
     if params.commands.is_empty() {
-        let no_results = Paragraph::new("No matching commands")
-            .style(Style::default().fg(Color::DarkGray));
+        let no_results =
+            Paragraph::new("No matching commands").style(Style::default().fg(Color::DarkGray));
         f.render_widget(no_results, area);
         return;
     }
-    
-    let items: Vec<ListItem> = params.commands
+
+    let items: Vec<ListItem> = params
+        .commands
         .iter()
         .enumerate()
         .map(|(i, cmd)| {
@@ -87,12 +88,14 @@ fn render_command_list(f: &mut Frame, area: Rect, params: CommandPaletteParams) 
             } else {
                 Style::default()
             };
-            
+
             let indicator = if i == params.selected { "▶ " } else { "  " };
-            let keybinding = cmd.keybinding.as_ref()
+            let keybinding = cmd
+                .keybinding
+                .as_ref()
                 .map(|k| format!(" ({})", k))
                 .unwrap_or_default();
-            
+
             let line = Line::from(vec![
                 Span::raw(indicator),
                 Span::styled(&cmd.name, style),
@@ -100,11 +103,11 @@ fn render_command_list(f: &mut Frame, area: Rect, params: CommandPaletteParams) 
                 Span::raw(" - "),
                 Span::styled(&cmd.description, Style::default().fg(Color::Cyan)),
             ]);
-            
+
             ListItem::new(line)
         })
         .collect();
-    
+
     let list = List::new(items);
     f.render_widget(list, area);
 }

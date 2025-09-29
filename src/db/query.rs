@@ -1,3 +1,4 @@
+use crate::plugins;
 use anyhow::{anyhow, Result};
 use heed::{
     types::{Bytes, Str},
@@ -6,7 +7,6 @@ use heed::{
 use jsonpath_lib as jsonpath;
 use regex::Regex;
 use serde_json::Value;
-use crate::plugins;
 use std::str;
 
 /// Attempt to decode raw bytes into a `serde_json::Value`.
@@ -73,14 +73,10 @@ pub fn parse_query(input: &str) -> Result<Mode<'_>> {
 }
 
 /// Count total matching entries without materializing all results
-pub fn count_matches(
-    env: &Env,
-    db_name: &str,
-    mode: Mode<'_>,
-) -> Result<usize> {
+pub fn count_matches(env: &Env, db_name: &str, mode: Mode<'_>) -> Result<usize> {
     let rtxn = env.read_txn()?;
     let db = open_database(&rtxn, env, db_name)?;
-    
+
     match &mode {
         Mode::Prefix(prefix) => count_prefix_matches(&rtxn, &db, prefix),
         Mode::Range(start, end) => count_range_matches(&rtxn, &db, start, end),
@@ -108,11 +104,13 @@ pub fn scan_paginated(
 ) -> Result<Vec<(String, Vec<u8>)>> {
     let rtxn = env.read_txn()?;
     let db = open_database(&rtxn, env, db_name)?;
-    
+
     match &mode {
         Mode::Prefix(prefix) => scan_prefix_paginated(&rtxn, &db, prefix, offset, limit),
         Mode::Range(start, end) => scan_range_paginated(&rtxn, &db, start, end, offset, limit),
-        Mode::Regex(re) => scan_full_paginated(&rtxn, &db, offset, limit, |key, _| re.is_match(key)),
+        Mode::Regex(re) => {
+            scan_full_paginated(&rtxn, &db, offset, limit, |key, _| re.is_match(key))
+        }
         Mode::JsonPath(path) => scan_full_paginated(&rtxn, &db, offset, limit, |_, value| {
             decode_value(value)
                 .ok()
@@ -138,11 +136,7 @@ pub fn scan(
 
 // Helper functions for optimized operations
 
-fn open_database(
-    rtxn: &RoTxn,
-    env: &Env,
-    db_name: &str,
-) -> Result<Database<Str, Bytes>> {
+fn open_database(rtxn: &RoTxn, env: &Env, db_name: &str) -> Result<Database<Str, Bytes>> {
     if db_name == "(unnamed)" {
         env.open_database(rtxn, None)?
             .ok_or_else(|| anyhow!("unnamed database not found"))
@@ -152,14 +146,10 @@ fn open_database(
     }
 }
 
-fn count_prefix_matches(
-    rtxn: &RoTxn,
-    db: &Database<Str, Bytes>,
-    prefix: &str,
-) -> Result<usize> {
+fn count_prefix_matches(rtxn: &RoTxn, db: &Database<Str, Bytes>, prefix: &str) -> Result<usize> {
     let mut count = 0;
     let iter = db.iter(rtxn)?;
-    
+
     for result in iter {
         let (key, _) = result?;
         if key.starts_with(prefix) {
@@ -180,7 +170,7 @@ fn count_range_matches(
 ) -> Result<usize> {
     let mut count = 0;
     let iter = db.iter(rtxn)?;
-    
+
     for result in iter {
         let (key, _) = result?;
         if key >= start && key < end {
@@ -222,7 +212,7 @@ fn scan_prefix_paginated(
     let mut items = Vec::with_capacity(limit.min(10000));
     let mut skipped = 0;
     let iter = db.iter(rtxn)?;
-    
+
     for result in iter {
         let (key, value) = result?;
         if key.starts_with(prefix) {
@@ -253,7 +243,7 @@ fn scan_range_paginated(
     let mut items = Vec::with_capacity(limit.min(10000));
     let mut skipped = 0;
     let iter = db.iter(rtxn)?;
-    
+
     for result in iter {
         let (key, value) = result?;
         if key >= start && key < end {
@@ -286,7 +276,7 @@ where
     let mut items = Vec::with_capacity(limit.min(10000));
     let mut skipped = 0;
     let iter = db.iter(rtxn)?;
-    
+
     for result in iter {
         let (key, value) = result?;
         if predicate(key, value) {

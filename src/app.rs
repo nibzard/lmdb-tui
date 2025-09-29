@@ -10,9 +10,9 @@ use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen,
 };
-use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
+use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use heed::Env;
-use notify::{Watcher, RecommendedWatcher, RecursiveMode};
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
@@ -24,8 +24,10 @@ use crate::db::undo::UndoStack;
 use crate::jobs::{JobQueue, JobResult};
 
 use crate::config::Config;
-use crate::constants::{DEFAULT_ENTRY_LIMIT, EVENT_POLL_TIMEOUT_MS, DEFAULT_PAGE_SIZE, 
-                      HELP_POPUP_PERCENTAGE, MAX_JUMP_HISTORY, FILE_WATCH_DEBOUNCE_SECS};
+use crate::constants::{
+    DEFAULT_ENTRY_LIMIT, DEFAULT_PAGE_SIZE, EVENT_POLL_TIMEOUT_MS, FILE_WATCH_DEBOUNCE_SECS,
+    HELP_POPUP_PERCENTAGE, MAX_JUMP_HISTORY,
+};
 use crate::db::env::{list_databases, list_entries, open_env};
 use crate::ui::{
     self,
@@ -182,7 +184,12 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(env: Env, mut db_names: Vec<String>, config: Config, db_path: &Path) -> Result<Self> {
+    pub fn new(
+        env: Env,
+        mut db_names: Vec<String>,
+        config: Config,
+        db_path: &Path,
+    ) -> Result<Self> {
         db_names.sort();
         let entries = if let Some(name) = db_names.first() {
             list_entries(&env, name, DEFAULT_ENTRY_LIMIT)?
@@ -199,11 +206,15 @@ impl App {
         // Initialize file watcher
         let (tx, rx) = mpsc::channel();
         let mut watcher = notify::recommended_watcher(tx).ok();
-        
+
         // Watch the database directory for changes
         if let Some(ref mut w) = watcher {
             if let Err(e) = w.watch(db_path, RecursiveMode::NonRecursive) {
-                log::warn!("Failed to setup file watching for {}: {}", db_path.display(), e);
+                log::warn!(
+                    "Failed to setup file watching for {}: {}",
+                    db_path.display(),
+                    e
+                );
             }
         }
 
@@ -253,17 +264,17 @@ impl App {
     pub fn current_view(&self) -> View {
         self.view.last().copied().unwrap_or(View::Main)
     }
-    
+
     /// Check if undo is available
     pub fn can_undo(&self) -> bool {
         self.undo_stack.can_undo()
     }
-    
+
     /// Check if redo is available  
     pub fn can_redo(&self) -> bool {
         self.undo_stack.can_redo()
     }
-    
+
     /// Get the currently selected key if available
     pub fn current_key(&self) -> Option<String> {
         match self.current_view() {
@@ -291,7 +302,12 @@ impl App {
             }
             View::CreateEntry | View::EditEntry | View::DeleteConfirm => {
                 // For dialogs, return the underlying view's current key
-                match self.view.get(self.view.len() - 2).copied().unwrap_or(View::Main) {
+                let underlying_view = if self.view.len() >= 2 {
+                    self.view.get(self.view.len() - 2).copied()
+                } else {
+                    None
+                };
+                match underlying_view.unwrap_or(View::Main) {
                     View::Main => {
                         if self.cursor < self.entries.len() {
                             Some(self.entries[self.cursor].0.clone())
@@ -311,7 +327,7 @@ impl App {
             }
         }
     }
-    
+
     /// Toggle bookmark for current selection
     pub fn toggle_bookmark(&mut self) -> Result<()> {
         if let (Some(db_name), Some(key)) = (self.db_names.get(self.selected), self.current_key()) {
@@ -324,7 +340,7 @@ impl App {
         }
         Ok(())
     }
-    
+
     /// Check if current selection is bookmarked
     pub fn is_current_bookmarked(&self) -> bool {
         if let (Some(db_name), Some(key)) = (self.db_names.get(self.selected), self.current_key()) {
@@ -355,7 +371,7 @@ impl App {
         if !self.query_loading {
             return "";
         }
-        
+
         match self.loading_spinner_state {
             0 => "⠋",
             1 => "⠙",
@@ -368,7 +384,6 @@ impl App {
             _ => "⠋",
         }
     }
-
 
     pub fn reduce(&mut self, action: Action) -> Result<()> {
         match action {
@@ -432,12 +447,13 @@ impl App {
                     // let mut txn = Txn::begin(&self.env)?;
                     // self.undo_stack.undo(&self.env, &mut txn)?;
                     // txn.commit()?;
-                    
+
                     // Refresh the current view
                     if let Some(name) = self.db_names.get(self.selected) {
                         self.entries = list_entries(&self.env, name, DEFAULT_ENTRY_LIMIT)?;
                     }
-                    self.has_pending_changes = self.undo_stack.can_undo() || self.undo_stack.can_redo();
+                    self.has_pending_changes =
+                        self.undo_stack.can_undo() || self.undo_stack.can_redo();
                 }
             }
             Action::Redo => {
@@ -449,12 +465,13 @@ impl App {
                     // let mut txn = Txn::begin(&self.env)?;
                     // self.undo_stack.redo(&self.env, &mut txn)?;
                     // txn.commit()?;
-                    
+
                     // Refresh the current view
                     if let Some(name) = self.db_names.get(self.selected) {
                         self.entries = list_entries(&self.env, name, DEFAULT_ENTRY_LIMIT)?;
                     }
-                    self.has_pending_changes = self.undo_stack.can_undo() || self.undo_stack.can_redo();
+                    self.has_pending_changes =
+                        self.undo_stack.can_undo() || self.undo_stack.can_redo();
                 }
             }
             Action::NextPage => {
@@ -517,7 +534,7 @@ impl App {
                 if self.current_view() == View::CommandPalette {
                     self.view.pop();
                 }
-                
+
                 // Execute the command
                 match cmd_id {
                     CommandId::CreateEntry => {
@@ -614,18 +631,21 @@ impl App {
                         // Jump to a specific bookmark or history entry
                         if let Some((db_name, key, _)) = self.filtered_bookmarks.get(idx) {
                             // Find the database index
-                            if let Some(db_idx) = self.db_names.iter().position(|db| db == db_name) {
+                            if let Some(db_idx) = self.db_names.iter().position(|db| db == db_name)
+                            {
                                 self.selected = db_idx;
-                                let entries = list_entries(&self.env, db_name, DEFAULT_ENTRY_LIMIT)?;
-                                
+                                let entries =
+                                    list_entries(&self.env, db_name, DEFAULT_ENTRY_LIMIT)?;
+
                                 // Find the key in the entries and set cursor
-                                if let Some(entry_idx) = entries.iter().position(|(k, _)| k == key) {
+                                if let Some(entry_idx) = entries.iter().position(|(k, _)| k == key)
+                                {
                                     self.cursor = entry_idx;
                                 }
-                                
+
                                 self.entries = entries;
                                 self.job_queue.request_db_stats(db_name.clone())?;
-                                
+
                                 // Add this to jump history
                                 self.jump_history.push(db_name.clone(), key.clone());
                             }
@@ -645,7 +665,7 @@ impl App {
                 if !self.dialog_key.is_empty() && !self.db_names.is_empty() {
                     let db_name = &self.db_names[self.selected];
                     let mut txn = Txn::begin(&self.env)?;
-                    
+
                     match commands::put(
                         &self.env,
                         &mut txn,
@@ -660,10 +680,14 @@ impl App {
                             } else {
                                 // Refresh entries and mark changes
                                 self.has_pending_changes = false;
-                                if let Ok(entries) = list_entries(&self.env, db_name, DEFAULT_ENTRY_LIMIT) {
+                                if let Ok(entries) =
+                                    list_entries(&self.env, db_name, DEFAULT_ENTRY_LIMIT)
+                                {
                                     self.entries = entries;
                                     // Find and select the newly created entry
-                                    if let Some(idx) = self.entries.iter().position(|(k, _)| k == &self.dialog_key) {
+                                    if let Some(idx) =
+                                        self.entries.iter().position(|(k, _)| k == &self.dialog_key)
+                                    {
                                         self.cursor = idx;
                                     }
                                 }
@@ -683,7 +707,7 @@ impl App {
                 if !self.dialog_key.is_empty() && !self.db_names.is_empty() {
                     let db_name = &self.db_names[self.selected];
                     let mut txn = Txn::begin(&self.env)?;
-                    
+
                     match commands::put(
                         &self.env,
                         &mut txn,
@@ -698,10 +722,14 @@ impl App {
                             } else {
                                 // Refresh entries
                                 self.has_pending_changes = false;
-                                if let Ok(entries) = list_entries(&self.env, db_name, DEFAULT_ENTRY_LIMIT) {
+                                if let Ok(entries) =
+                                    list_entries(&self.env, db_name, DEFAULT_ENTRY_LIMIT)
+                                {
                                     self.entries = entries;
                                     // Find and select the edited entry
-                                    if let Some(idx) = self.entries.iter().position(|(k, _)| k == &self.dialog_key) {
+                                    if let Some(idx) =
+                                        self.entries.iter().position(|(k, _)| k == &self.dialog_key)
+                                    {
                                         self.cursor = idx;
                                     }
                                 }
@@ -722,18 +750,28 @@ impl App {
                     if !self.db_names.is_empty() {
                         let db_name = &self.db_names[self.selected];
                         let mut txn = Txn::begin(&self.env)?;
-                        
-                        match commands::delete(&self.env, &mut txn, &mut self.undo_stack, db_name, &key) {
+
+                        match commands::delete(
+                            &self.env,
+                            &mut txn,
+                            &mut self.undo_stack,
+                            db_name,
+                            &key,
+                        ) {
                             Ok(()) => {
                                 if let Err(e) = txn.commit() {
                                     log::error!("Failed to commit delete transaction: {}", e);
                                 } else {
                                     // Refresh entries and adjust cursor
                                     self.has_pending_changes = false;
-                                    if let Ok(entries) = list_entries(&self.env, db_name, DEFAULT_ENTRY_LIMIT) {
+                                    if let Ok(entries) =
+                                        list_entries(&self.env, db_name, DEFAULT_ENTRY_LIMIT)
+                                    {
                                         self.entries = entries;
                                         // Adjust cursor to stay in bounds
-                                        if self.cursor >= self.entries.len() && !self.entries.is_empty() {
+                                        if self.cursor >= self.entries.len()
+                                            && !self.entries.is_empty()
+                                        {
                                             self.cursor = self.entries.len() - 1;
                                         }
                                     }
@@ -786,7 +824,7 @@ impl App {
                         let offset = self.entries.len();
                         if let Some(db_name) = self.db_names.get(self.selected) {
                             if let Ok(next_entries) = crate::db::env::list_entries_paginated(
-                                &self.env, db_name, offset, page_size
+                                &self.env, db_name, offset, page_size,
                             ) {
                                 if !next_entries.is_empty() {
                                     self.entries.extend(next_entries);
@@ -828,6 +866,33 @@ impl App {
                     None
                 }
             }
+            View::CreateEntry | View::EditEntry | View::DeleteConfirm => {
+                // For dialogs, return the underlying view's current entry
+                let underlying_view = if self.view.len() >= 2 {
+                    self.view.get(self.view.len() - 2).copied()
+                } else {
+                    None
+                };
+                match underlying_view.unwrap_or(View::Main) {
+                    View::Main => {
+                        if self.cursor < self.entries.len() {
+                            let (key, value) = &self.entries[self.cursor];
+                            Some((key.clone(), value.clone()))
+                        } else {
+                            None
+                        }
+                    }
+                    View::Query => {
+                        if self.query_cursor < self.entries.len() {
+                            let (key, value) = &self.entries[self.query_cursor];
+                            Some((key.clone(), value.clone()))
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                }
+            }
             _ => None,
         }
     }
@@ -860,7 +925,12 @@ impl App {
                 id: CommandId::EnterQuery,
                 name: "Search".into(),
                 description: "Enter query mode to search entries".into(),
-                keywords: vec!["search".into(), "query".into(), "find".into(), "filter".into()],
+                keywords: vec![
+                    "search".into(),
+                    "query".into(),
+                    "find".into(),
+                    "filter".into(),
+                ],
                 keybinding: Some("/".into()),
             },
             Command {
@@ -902,7 +972,13 @@ impl App {
                 id: CommandId::CycleTheme,
                 name: "Cycle Theme".into(),
                 description: "Switch between Dark, Light, and High Contrast themes".into(),
-                keywords: vec!["theme".into(), "color".into(), "appearance".into(), "dark".into(), "light".into()],
+                keywords: vec![
+                    "theme".into(),
+                    "color".into(),
+                    "appearance".into(),
+                    "dark".into(),
+                    "light".into(),
+                ],
                 keybinding: Some("F6".into()),
             },
             Command {
@@ -931,28 +1007,29 @@ impl App {
 
     pub fn filter_commands(&mut self) {
         let all_commands = Self::build_command_list();
-        
+
         if self.command_palette_query.is_empty() {
             self.filtered_commands = all_commands;
         } else {
             let matcher = SkimMatcherV2::default();
             let query = &self.command_palette_query;
-            
+
             // Score each command based on fuzzy match against name, description, and keywords
             let mut scored_commands: Vec<(Command, i64)> = all_commands
                 .into_iter()
                 .filter_map(|cmd| {
                     let name_score = matcher.fuzzy_match(&cmd.name, query).unwrap_or(0);
                     let desc_score = matcher.fuzzy_match(&cmd.description, query).unwrap_or(0);
-                    let keyword_score = cmd.keywords
+                    let keyword_score = cmd
+                        .keywords
                         .iter()
                         .map(|k| matcher.fuzzy_match(k, query).unwrap_or(0))
                         .max()
                         .unwrap_or(0);
-                    
+
                     // Use the best score among name, description, and keywords
                     let best_score = name_score.max(desc_score).max(keyword_score);
-                    
+
                     if best_score > 0 {
                         Some((cmd, best_score))
                     } else {
@@ -960,13 +1037,13 @@ impl App {
                     }
                 })
                 .collect();
-            
+
             // Sort by score (descending) to show best matches first
             scored_commands.sort_by(|a, b| b.1.cmp(&a.1));
-            
+
             self.filtered_commands = scored_commands.into_iter().map(|(cmd, _)| cmd).collect();
         }
-        
+
         // Reset selection if it's out of bounds
         if self.command_palette_selected >= self.filtered_commands.len() {
             self.command_palette_selected = 0;
@@ -975,15 +1052,15 @@ impl App {
 
     fn show_bookmarks_in_palette(&mut self) {
         let mut bookmark_commands = Vec::new();
-        
+
         // Collect all bookmarks and history into a single vector for indexing
         let mut all_entries = Vec::new();
-        
+
         // Add bookmarks first
         for (db_name, key) in self.bookmarks.entries() {
             all_entries.push((db_name.clone(), key.clone(), true)); // true = bookmark
         }
-        
+
         // Add history entries
         for (db_name, key) in self.jump_history.entries() {
             // Only add if not already in bookmarks
@@ -991,25 +1068,32 @@ impl App {
                 all_entries.push((db_name.clone(), key.clone(), false)); // false = history
             }
         }
-        
+
         // Create commands for all entries
         for (idx, (db_name, key, is_bookmark)) in all_entries.iter().enumerate() {
             let icon = if *is_bookmark { "📎" } else { "🕒" };
             let category = if *is_bookmark { "bookmarked" } else { "recent" };
-            
+
             bookmark_commands.push(Command {
                 id: CommandId::GoToBookmark(idx),
                 name: format!("{} {}: {}", icon, db_name, key),
                 description: format!("Jump to {} entry in {}", category, db_name),
-                keywords: vec![db_name.clone(), key.clone(), 
-                             if *is_bookmark { "bookmark".into() } else { "history".into() }],
+                keywords: vec![
+                    db_name.clone(),
+                    key.clone(),
+                    if *is_bookmark {
+                        "bookmark".into()
+                    } else {
+                        "history".into()
+                    },
+                ],
                 keybinding: None,
             });
         }
-        
+
         // Store the entries for later lookup during command execution
         self.filtered_bookmarks = all_entries;
-        
+
         // If no bookmarks or history, show a message
         if bookmark_commands.is_empty() {
             bookmark_commands.push(Command {
@@ -1020,7 +1104,7 @@ impl App {
                 keybinding: Some("b".into()),
             });
         }
-        
+
         self.filtered_commands = bookmark_commands;
     }
 
@@ -1033,21 +1117,21 @@ impl App {
         self.query_loading = true;
         let db_name = &self.db_names[self.selected];
         let mode = crate::db::query::parse_query(&self.query)?;
-        
+
         // PERFORMANCE OPTIMIZATION: Use separate count and paginated scan
         // This eliminates the double scanning issue
         self.total_entries = crate::db::query::count_matches(&self.env, db_name, mode.clone())?;
-        
+
         // Get current page results using optimized pagination
         let page_size = DEFAULT_PAGE_SIZE;
         self.entries = crate::db::query::scan_paginated(
-            &self.env, 
-            db_name, 
-            mode, 
-            self.page_offset, 
-            page_size
+            &self.env,
+            db_name,
+            mode,
+            self.page_offset,
+            page_size,
         )?;
-        
+
         if self.query_cursor >= self.entries.len() {
             self.query_cursor = self.entries.len().saturating_sub(1);
         }
@@ -1138,15 +1222,21 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                             Some(Action::PrevDb)
                         } else if key.code == KeyCode::Right {
                             Some(Action::NextDb)
-                        } else if key.code == KeyCode::Char('z') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                        } else if key.code == KeyCode::Char('z')
+                            && key.modifiers.contains(KeyModifiers::CONTROL)
+                        {
                             Some(Action::Undo)
-                        } else if key.code == KeyCode::Char('y') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                        } else if key.code == KeyCode::Char('y')
+                            && key.modifiers.contains(KeyModifiers::CONTROL)
+                        {
                             Some(Action::Redo)
                         } else if key.code == KeyCode::Char('b') {
                             Some(Action::ToggleBookmark)
                         } else if key.code == KeyCode::Char('B') {
                             Some(Action::ShowBookmarks)
-                        } else if key.code == KeyCode::Char('p') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                        } else if key.code == KeyCode::Char('p')
+                            && key.modifiers.contains(KeyModifiers::CONTROL)
+                        {
                             Some(Action::OpenCommandPalette)
                         } else if key.code == KeyCode::Enter {
                             Some(Action::EnterPreview)
@@ -1189,9 +1279,13 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                             app.query.pop();
                             app.update_query_results()?;
                             None
-                        } else if key.code == KeyCode::Char('z') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                        } else if key.code == KeyCode::Char('z')
+                            && key.modifiers.contains(KeyModifiers::CONTROL)
+                        {
                             Some(Action::Undo)
-                        } else if key.code == KeyCode::Char('y') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                        } else if key.code == KeyCode::Char('y')
+                            && key.modifiers.contains(KeyModifiers::CONTROL)
+                        {
                             Some(Action::Redo)
                         } else if key.code == KeyCode::PageDown {
                             Some(Action::NextPage)
@@ -1222,7 +1316,8 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                             Some(Action::ExitView)
                         } else if key.code == app.config.keybindings.down {
                             if !app.filtered_commands.is_empty() {
-                                app.command_palette_selected = (app.command_palette_selected + 1) % app.filtered_commands.len();
+                                app.command_palette_selected = (app.command_palette_selected + 1)
+                                    % app.filtered_commands.len();
                             }
                             None
                         } else if key.code == app.config.keybindings.up {
@@ -1235,7 +1330,9 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                             }
                             None
                         } else if key.code == KeyCode::Enter {
-                            app.filtered_commands.get(app.command_palette_selected).map(|cmd| Action::ExecuteCommand(cmd.id))
+                            app.filtered_commands
+                                .get(app.command_palette_selected)
+                                .map(|cmd| Action::ExecuteCommand(cmd.id))
                         } else if key.code == KeyCode::Backspace {
                             app.command_palette_query.pop();
                             app.filter_commands();
@@ -1338,16 +1435,14 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                             _ => None,
                         }
                     }
-                    View::DeleteConfirm => {
-                        match key.code {
-                            KeyCode::Esc => Some(Action::ExitView),
-                            KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char('Y') => {
-                                Some(Action::ConfirmDelete)
-                            }
-                            KeyCode::Char('n') | KeyCode::Char('N') => Some(Action::ExitView),
-                            _ => None,
+                    View::DeleteConfirm => match key.code {
+                        KeyCode::Esc => Some(Action::ExitView),
+                        KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char('Y') => {
+                            Some(Action::ConfirmDelete)
                         }
-                    }
+                        KeyCode::Char('n') | KeyCode::Char('N') => Some(Action::ExitView),
+                        _ => None,
+                    },
                 };
                 if let Some(act) = action {
                     app.reduce(act)?;
@@ -1358,11 +1453,13 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
         // Check for file system events (non-blocking) with debouncing
         let mut should_refresh = false;
         let now = Instant::now();
-        
+
         while let Ok(event_result) = app.file_events.try_recv() {
             if let Ok(event) = event_result {
                 match event.kind {
-                    notify::EventKind::Create(_) | notify::EventKind::Modify(_) | notify::EventKind::Remove(_) => {
+                    notify::EventKind::Create(_)
+                    | notify::EventKind::Modify(_)
+                    | notify::EventKind::Remove(_) => {
                         // Check if enough time has passed since last event (debouncing)
                         if let Some(last_event) = app.last_file_event {
                             if now.duration_since(last_event).as_secs() < FILE_WATCH_DEBOUNCE_SECS {
@@ -1370,7 +1467,7 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                                 continue;
                             }
                         }
-                        
+
                         app.last_file_event = Some(now);
                         should_refresh = true;
                     }
@@ -1378,7 +1475,7 @@ pub fn run(path: &Path, read_only: bool) -> Result<()> {
                 }
             }
         }
-        
+
         // Only refresh once per iteration, even if multiple events occurred
         if should_refresh {
             app.reduce(Action::Refresh)?;

@@ -63,23 +63,23 @@ impl Theme {
     pub fn selected_style(&self) -> Style {
         Style::default().fg(self.selected_fg).bg(self.selected_bg)
     }
-    
+
     pub fn background_style(&self) -> Style {
         Style::default().fg(self.foreground).bg(self.background)
     }
-    
+
     pub fn border_style(&self) -> Style {
         Style::default().fg(self.border)
     }
-    
+
     pub fn highlight_style(&self) -> Style {
         Style::default().fg(self.highlight)
     }
-    
+
     pub fn dim_style(&self) -> Style {
         Style::default().fg(self.dim)
     }
-    
+
     pub fn dark() -> Self {
         Self {
             name: "Dark".into(),
@@ -92,7 +92,7 @@ impl Theme {
             dim: Color::DarkGray,
         }
     }
-    
+
     pub fn light() -> Self {
         Self {
             name: "Light".into(),
@@ -105,7 +105,7 @@ impl Theme {
             dim: Color::Gray,
         }
     }
-    
+
     pub fn high_contrast() -> Self {
         Self {
             name: "High Contrast".into(),
