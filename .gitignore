@@ -7,6 +7,12 @@
 
 # Testing artifacts
 **/mutants.out*/
+test_snapshots/
+**/lock.mdb
+test_env/
 
 # IDE settings
 .idea/
+
+# Local settings
+.claude/settings.local.json
