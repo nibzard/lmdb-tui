@@ -10,23 +10,27 @@ fn query_view_snapshot() -> anyhow::Result<()> {
     let cfg = Config::default();
     terminal.draw(|f| {
         let size = f.size();
-        query::render(f, size, QueryViewParams {
-            query: "prefix f",
-            entries: &entries,
-            selected: 0,
-            total_entries: 1,
-            page_offset: 0,
-            loading: false,
-            config: &cfg,
-            spinner_char: "",
-        });
+        query::render(
+            f,
+            size,
+            QueryViewParams {
+                query: "prefix f",
+                entries: &entries,
+                selected: 0,
+                total_entries: 1,
+                page_offset: 0,
+                loading: false,
+                config: &cfg,
+                spinner_char: "",
+            },
+        );
     })?;
     let buffer = terminal.backend().buffer();
     assert_eq!(buffer.get(0, 0).symbol(), "┌");
     assert_eq!(buffer.get(0, 1).symbol(), "│");
     assert_eq!(buffer.get(0, 2).symbol(), "│");
     assert_eq!(buffer.get(0, 3).symbol(), "└");
-    
+
     // Check that the selected item has the arrow indicator and highlighting
     assert_eq!(buffer.get(1, 2).symbol(), "▶"); // Arrow indicator
     assert_eq!(buffer.get(3, 2).symbol(), "f"); // First character of "foo"
